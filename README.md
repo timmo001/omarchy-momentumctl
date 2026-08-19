@@ -10,7 +10,7 @@ Comfort Call.
 ## Requirements
 
 - Omarchy Quattro
-- `momentumctl` installed and available on `PATH`
+- [`momentumctl`](https://github.com/gjabell/momentumctl) installed and available on `PATH`
 - A paired and connected Sennheiser headset supported by `momentumctl`
 
 `momentumctl` uses a reverse-engineered Sennheiser protocol. Features may vary
@@ -19,11 +19,7 @@ resets, or undocumented commands.
 
 ## Install
 
-Install `momentumctl` with mise:
-
-```bash
-mise use --global cargo:https://codeberg.org/galen/momentumctl@rev:e86f3e22a0278892c073d1a9f956e5976839c661
-```
+Install [`momentumctl`](https://github.com/gjabell/momentumctl).
 
 Review the plugin, then install it:
 
