@@ -17,12 +17,6 @@ resets, or undocumented commands.
 
 ## Install
 
-Install the CLI from the `timmo` Arch repository:
-
-```bash
-sudo pacman -S momentumctl
-```
-
 Review the plugin, then install it:
 
 ```bash
@@ -60,7 +54,6 @@ omarchy plugin remove timmo.momentumctl
 
 ```bash
 mise run check
-mise run package
 ```
 
 ## Credits
