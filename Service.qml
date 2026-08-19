@@ -82,7 +82,7 @@ Item {
     onExited: function(exitCode) {
       root.busy = false
       root.connected = exitCode === 0 && root.statusValid
-      root.error = root.connected ? "" : "MOMENTUM 4 is unavailable"
+      root.error = root.connected ? "" : "momentumctl is unavailable"
     }
   }
 

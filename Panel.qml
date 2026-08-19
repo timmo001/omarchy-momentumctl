@@ -82,7 +82,7 @@ Item {
 
           PanelHero {
             width: parent.width
-            title: "MOMENTUM 4"
+            title: "momentumctl"
             meta: root.service && root.service.connected
               ? "Connected · Battery " + root.service.battery + "%"
               : (root.service && root.service.error ? root.service.error : "Waiting for headset")

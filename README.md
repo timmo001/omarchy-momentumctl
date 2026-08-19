@@ -1,6 +1,6 @@
-# MOMENTUM 4 for Omarchy
+# momentumctl for Omarchy
 
-An Omarchy control panel for Sennheiser MOMENTUM 4 headphones. It shows the
+An Omarchy control panel for Sennheiser headphones supported by `momentumctl`. It shows the
 headset battery and controls ANC, adaptive noise control,
 transparency, anti-wind mode, Smart Pause, on-head detection, auto-answer, and
 Comfort Call.
@@ -11,7 +11,7 @@ Comfort Call.
 
 - Omarchy Quattro
 - `momentumctl` installed and available on `PATH`
-- A paired and connected Sennheiser MOMENTUM 4 headset
+- A paired and connected Sennheiser headset supported by `momentumctl`
 
 `momentumctl` uses a reverse-engineered Sennheiser protocol. Features may vary
 with headset firmware. This plugin does not implement firmware updates, factory

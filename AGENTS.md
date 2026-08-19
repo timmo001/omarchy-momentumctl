@@ -1,4 +1,4 @@
-# Omarchy MOMENTUM 4 Guidance
+# Omarchy momentumctl Guidance
 
 ## Scope
 

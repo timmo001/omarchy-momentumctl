@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "id": "timmo.momentumctl",
-  "name": "MOMENTUM 4",
+  "name": "momentumctl",
   "version": "0.1.0",
   "author": "Timmo",
   "license": "Apache-2.0",
-  "description": "Sennheiser MOMENTUM 4 controls",
+  "description": "Sennheiser headset controls through momentumctl",
   "kinds": ["service", "panel"],
   "keepLoaded": true,
   "entryPoints": {
