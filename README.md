@@ -5,6 +5,8 @@ headset battery and controls ANC, adaptive noise control,
 transparency, anti-wind mode, Smart Pause, on-head detection, auto-answer, and
 Comfort Call.
 
+<img width="710" height="1115" alt="image" src="https://github.com/user-attachments/assets/2357d176-d6e7-4f50-98d5-3db27094d272" />
+
 ## Requirements
 
 - Omarchy Quattro
