@@ -17,6 +17,12 @@ resets, or undocumented commands.
 
 ## Install
 
+Install `momentumctl` from upstream:
+
+```bash
+cargo install --git https://codeberg.org/galen/momentumctl
+```
+
 Review the plugin, then install it:
 
 ```bash
