@@ -23,6 +23,12 @@ Install `momentumctl` from upstream:
 cargo install --git https://codeberg.org/galen/momentumctl
 ```
 
+Alternatively, install it with mise:
+
+```bash
+mise use --global cargo:https://codeberg.org/galen/momentumctl@rev:e86f3e22a0278892c073d1a9f956e5976839c661
+```
+
 Review the plugin, then install it:
 
 ```bash
