@@ -6,36 +6,10 @@
   "author": "Timmo",
   "license": "Apache-2.0",
   "description": "Sennheiser MOMENTUM 4 controls",
-  "kinds": ["service", "bar-widget"],
+  "kinds": ["service", "panel"],
   "keepLoaded": true,
   "entryPoints": {
     "service": "Service.qml",
-    "barWidget": "BarWidget.qml"
-  },
-  "barWidget": {
-    "displayName": "MOMENTUM 4",
-    "description": "Shows battery and opens headset controls",
-    "category": "Audio",
-    "allowMultiple": false,
-    "defaultSection": "right",
-    "defaults": {
-      "primaryOnly": false,
-      "primaryOutput": ""
-    },
-    "schema": [
-      {
-        "key": "primaryOnly",
-        "type": "boolean",
-        "label": "Primary output only",
-        "defaultValue": false
-      },
-      {
-        "key": "primaryOutput",
-        "type": "string",
-        "label": "Primary output",
-        "defaultValue": "",
-        "description": "Optional output name used when primary output only is enabled."
-      }
-    ]
+    "panel": "Panel.qml"
   }
 }

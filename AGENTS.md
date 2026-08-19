@@ -2,7 +2,7 @@
 
 ## Scope
 
-- This repository owns the `timmo.momentumctl` Omarchy Shell plugin.
+- This repository owns the `timmo.momentumctl` Omarchy Shell panel plugin.
 - The default branch is `main`.
 
 ## Plugin

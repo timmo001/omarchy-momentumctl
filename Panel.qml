@@ -1,61 +1,84 @@
 import QtQuick
 import QtQuick.Controls
+import Quickshell
+import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-Panel {
+Item {
   id: root
-  moduleName: "timmo.momentumctl"
 
-  property var anchorItem: null
-  property var hostWidget: null
+  property var shell: null
   property var service: null
-  readonly property var barIdentity: hostWidget || root
-  readonly property color foreground: bar ? bar.foreground : Color.foreground
-  readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
+  property bool opened: false
+  readonly property color foreground: Color.foreground
+  readonly property string fontFamily: Style.font.family
+  readonly property var panelBar: QtObject {
+    readonly property color foreground: root.foreground
+    readonly property color background: Color.background
+    readonly property color urgent: Color.urgent
+    readonly property string fontFamily: root.fontFamily
+  }
 
-  function open() {
-    controller.show()
+  function open(payloadJson) {
+    opened = true
     if (service) service.refresh()
     Qt.callLater(function() {
       scrollArea.contentItem.contentY = 0
       keyCatcher.forceActiveFocus()
     })
   }
-  function close() { controller.hide() }
-  function toggle() { if (opened) close(); else open() }
-  function switchPanel(direction) {
-    if (bar && typeof bar.switchPanelFrom === "function")
-      return bar.switchPanelFrom(barIdentity, direction)
-    return false
+  function close() {
+    opened = false
+  }
+  function requestClose() {
+    if (shell && typeof shell.hide === "function") shell.hide("timmo.momentumctl")
+    else close()
   }
 
-  KeyboardPanel {
-    id: panel
-    anchorItem: root.anchorItem
-    owner: root.barIdentity
-    bar: root.bar
-    open: root.opened
-    focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(410))
-    contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, Style.space(650))
+  PanelWindow {
+    visible: root.opened
+    anchors { top: true; bottom: true; left: true; right: true }
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    WlrLayershell.namespace: "timmo-momentumctl"
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
-    PanelKeyCatcher {
-      id: keyCatcher
+    Rectangle {
       anchors.fill: parent
-      onCloseRequested: root.close()
-      onTabRequested: function(direction) { root.switchPanel(direction) }
-
-      ScrollView {
-        id: scrollArea
+      color: Color.menu.scrim
+      MouseArea {
         anchors.fill: parent
-        clip: true
-        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        onClicked: root.requestClose()
+      }
+    }
 
-        Column {
-          id: contentColumn
-          width: scrollArea.availableWidth
-          spacing: Style.space(12)
+    Rectangle {
+      anchors.centerIn: parent
+      width: Math.min(Style.space(430), parent.width - Style.space(32))
+      height: Math.min(contentColumn.implicitHeight + Style.space(32), parent.height - Style.space(32))
+      color: Color.background
+      radius: Style.cornerRadius
+
+      MouseArea { anchors.fill: parent; onClicked: {} }
+
+      PanelKeyCatcher {
+        id: keyCatcher
+        anchors.fill: parent
+        onCloseRequested: root.requestClose()
+
+        ScrollView {
+          id: scrollArea
+          anchors.fill: parent
+          anchors.margins: Style.space(16)
+          clip: true
+          ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+          Column {
+            id: contentColumn
+            width: scrollArea.availableWidth
+            spacing: Style.space(12)
 
           PanelHero {
             width: parent.width
@@ -134,7 +157,7 @@ Panel {
 
             PanelSlider {
               id: transparencySlider
-              bar: root.bar
+              bar: root.panelBar
               width: parent.width
               minimum: 0
               maximum: 100
@@ -222,6 +245,7 @@ Panel {
                 onClicked: root.service.setValue("anti-wind", modelData)
               }
             }
+          }
           }
         }
       }

@@ -1,7 +1,7 @@
 # MOMENTUM 4 for Omarchy
 
-An Omarchy bar widget and control panel for Sennheiser MOMENTUM 4 headphones.
-It shows the headset battery and controls ANC, adaptive noise control,
+An Omarchy control panel for Sennheiser MOMENTUM 4 headphones. It shows the
+headset battery and controls ANC, adaptive noise control,
 transparency, anti-wind mode, Smart Pause, on-head detection, auto-answer, and
 Comfort Call.
 
@@ -37,12 +37,13 @@ omarchy plugin add \
   --enable --yes
 ```
 
-Select the headphones widget to open the panel. The plugin also exposes the
-`timmo.momentumctl` shell IPC target:
+Open the panel through its shell IPC target:
 
 ```bash
-omarchy-shell timmo.momentumctl toggle
+omarchy-shell shell toggle timmo.momentumctl
 ```
+
+Bind that command to a desktop hotkey for direct access.
 
 ## Update
 
