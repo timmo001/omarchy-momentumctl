@@ -1,0 +1,28 @@
+---
+name: Check
+
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  plugin:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install validation tools
+        run: pacman -Syu --noconfirm --needed git quickshell qt6-declarative
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check manifest
+        run: |
+          git clone --depth 1 --branch quattro https://github.com/basecamp/omarchy.git "$RUNNER_TEMP/omarchy"
+          OMARCHY_PATH="$RUNNER_TEMP/omarchy" "$RUNNER_TEMP/omarchy/bin/omarchy-plugin-validate" .
+      - name: Lint QML
+        run: |
+          export PATH="/usr/lib/qt6/bin:$PATH"
+          qmllint -I /usr/lib/qt6/qml BarWidget.qml Panel.qml Service.qml

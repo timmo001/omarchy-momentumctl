@@ -1,0 +1,11 @@
+[tasks.check]
+depends = ["validate", "lint"]
+
+[tasks.validate]
+run = "omarchy plugin validate ."
+
+[tasks.lint]
+run = "qmllint -I /usr/lib/qt6/qml BarWidget.qml Panel.qml Service.qml"
+
+[tasks.package]
+run = "makepkg --clean --cleanbuild --force --nodeps --noconfirm"
