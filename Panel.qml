@@ -17,7 +17,10 @@ Panel {
   function open() {
     controller.show()
     if (service) service.refresh()
-    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    Qt.callLater(function() {
+      scrollArea.contentItem.contentY = 0
+      keyCatcher.forceActiveFocus()
+    })
   }
   function close() { controller.hide() }
   function toggle() { if (opened) close(); else open() }
@@ -44,13 +47,14 @@ Panel {
       onTabRequested: function(direction) { root.switchPanel(direction) }
 
       ScrollView {
+        id: scrollArea
         anchors.fill: parent
         clip: true
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
         Column {
           id: contentColumn
-          width: parent.width
+          width: scrollArea.availableWidth
           spacing: Style.space(12)
 
           PanelHero {
