@@ -4,8 +4,10 @@ name: Check
 # yamllint disable-line rule:truthy
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request: {}
+  workflow_dispatch: {}
 
 permissions:
   contents: read
