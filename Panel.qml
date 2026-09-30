@@ -24,7 +24,7 @@ Item {
     opened = true
     if (service) service.refresh()
     Qt.callLater(function() {
-      scrollArea.contentItem.contentY = 0
+      scrollArea.contentY = 0
       keyCatcher.forceActiveFocus()
     })
   }
@@ -68,16 +68,21 @@ Item {
         anchors.fill: parent
         onCloseRequested: root.requestClose()
 
-        ScrollView {
+        PanelFlickable {
           id: scrollArea
           anchors.fill: parent
           anchors.margins: Style.space(16)
+          contentWidth: width
+          contentHeight: contentColumn.implicitHeight
           clip: true
-          ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+          boundsBehavior: Flickable.StopAtBounds
+          flickableDirection: Flickable.VerticalFlick
+          interactive: contentHeight > height
+          ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
           Column {
             id: contentColumn
-            width: scrollArea.availableWidth
+            width: scrollArea.width
             spacing: Style.space(12)
 
           PanelHeader {
