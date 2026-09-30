@@ -80,8 +80,7 @@ Item {
             width: scrollArea.availableWidth
             spacing: Style.space(12)
 
-          PanelHero {
-            width: parent.width
+          PanelHeader {
             title: "momentumctl"
             meta: root.service && root.service.connected
               ? "Connected · Battery " + root.service.battery + "%"
