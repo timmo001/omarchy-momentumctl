@@ -27,4 +27,4 @@ jobs:
       - name: Lint QML
         run: |
           export PATH="/usr/lib/qt6/bin:$PATH"
-          qmllint -I /usr/lib/qt6/qml Panel.qml PanelFlickable.qml PanelHeader.qml Service.qml
+          qmllint -I /usr/lib/qt6/qml Panel.qml PanelFlickable.qml PanelHeader.qml SectionHeading.qml Service.qml
