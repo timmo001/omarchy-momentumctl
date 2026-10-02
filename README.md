@@ -43,7 +43,7 @@ omarchy-shell shell toggle timmo.momentumctl
 
 Bind that command to a desktop hotkey for direct access.
 
-In the panel, Up and Down move between controls, Enter toggles the selected
+In the panel, Up and Down move between controls, Enter activates the selected
 one, and Left and Right adjust transparency or anti-wind. Type to filter the
 controls, and press Escape to clear the filter or close the panel.
 

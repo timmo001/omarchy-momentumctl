@@ -13,9 +13,16 @@ Item {
   property bool opened: false
   readonly property color foreground: Color.foreground
   readonly property string fontFamily: Style.font.family
-  readonly property color mutedColor: Qt.darker(foreground, 1.4)
-  readonly property bool controllable: service !== null && service.connected && !service.busy
+  readonly property color mutedColor: Qt.darker(foreground, 1.35)
+  readonly property bool connected: service !== null && service.connected
+  readonly property bool controllable: connected && !service.busy
   readonly property var antiWindModes: ["off", "auto", "max"]
+  readonly property int transparencyStep: 10
+  // Shared live value so the stepper label, slider, and keyboard steps agree
+  // while a transparency change is still waiting to be sent.
+  property int transparencyLive: 0
+  readonly property string cursorKey: filterController.selectedEntry() ? filterController.selectedEntry().key : ""
+  readonly property string cursorRowKey: filterController.selectedEntry() ? filterController.selectedEntry().rowKey : ""
   readonly property var panelBar: QtObject {
     readonly property color foreground: root.foreground
     readonly property color background: Color.background
@@ -24,105 +31,148 @@ Item {
   }
 
   readonly property var rows: [
-    toggleRow("anc", "anc", "Active noise cancellation", "Reduce surrounding noise", "Noise control"),
-    toggleRow("adaptive", "adaptive", "Adaptive noise control", "Adjust cancellation to the surroundings", "Noise control"),
-    { key: "transparency", kind: "slider", primaryText: "Transparency", secondaryText: "Hear your surroundings", section: "Noise control" },
-    toggleRow("smart-pause", "smartPause", "Smart Pause", "Pause playback when the headphones are removed", "Behaviour"),
-    toggleRow("on-head-detection", "onHeadDetection", "On-head detection", "Detect when the headphones are being worn", "Behaviour"),
-    toggleRow("auto-answer", "autoAnswer", "Auto-answer", "Answer calls when the headphones are put on", "Behaviour"),
-    toggleRow("comfort-call", "comfortCall", "Comfort Call", "Adjust call audio for comfort", "Behaviour"),
-    { key: "anti-wind", kind: "choice", primaryText: "Anti-wind", secondaryText: "Off auto max", section: "Anti-wind" }
+    toggleRow("anc", "anc", 0xf0581, "Noise cancellation", "Noise control"),
+    toggleRow("adaptive", "adaptive", 0xf1542, "Adaptive noise control", "Noise control"),
+    { key: "transparency", kind: "number", icon: 0xf07c5, primaryText: "Transparency", secondaryText: "", section: "Noise control" },
+    { key: "anti-wind", kind: "choice", icon: 0xf059d, primaryText: "Anti-wind", secondaryText: "off auto max", section: "Noise control" },
+    toggleRow("smart-pause", "smartPause", 0xf03e6, "Smart Pause", "Behaviour"),
+    toggleRow("on-head-detection", "onHeadDetection", 0xf133b, "On-head detection", "Behaviour"),
+    toggleRow("auto-answer", "autoAnswer", 0xf03f6, "Auto-answer", "Behaviour"),
+    toggleRow("comfort-call", "comfortCall", 0xf05cb, "Comfort Call", "Behaviour")
   ]
 
-  function toggleRow(key, property, label, description, section) {
-    return { key: key, kind: "toggle", property: property, primaryText: label, secondaryText: description, section: section }
+  function toggleRow(key, property, icon, label, section) {
+    return { key: key, kind: "toggle", property: property, icon: icon, primaryText: label, secondaryText: "", section: section }
   }
 
-  function hasCursor(key) {
-    return filterController.cursorActive && filterController.cursorIndex === filterController.indexForKey(key)
+  // Every clickable control is its own cursor stop, so Up and Down walk the
+  // buttons inside a row as well as the rows themselves.
+  function buildNavigationEntries(entries) {
+    var targets = [{ key: "action:refresh", rowKey: "action:refresh", kind: "refresh", navigation: true }]
+    for (var i = 0; i < entries.length; i++) {
+      var entry = entries[i]
+      if (entry.kind === "toggle")
+        targets.push({ key: entry.key, rowKey: entry.key, row: entry, kind: "toggle" })
+      else if (entry.kind === "number") {
+        targets.push({ key: entry.key + ":decrement", rowKey: entry.key, row: entry, kind: "step", delta: -1 })
+        targets.push({ key: entry.key + ":increment", rowKey: entry.key, row: entry, kind: "step", delta: 1 })
+      } else if (entry.kind === "choice") {
+        for (var mode = 0; mode < antiWindModes.length; mode++)
+          targets.push({ key: entry.key + ":" + antiWindModes[mode], rowKey: entry.key, row: entry, kind: "mode", value: antiWindModes[mode] })
+      }
+    }
+    return targets
   }
 
-  function sectionVisible(section) {
-    return filterController.filteredModel.some(function(entry) { return entry.section === section })
+  function sectionRows(section) {
+    return filterController.filteredModel.filter(function(entry) { return entry.section === section })
   }
 
-  function rowVisible(key) {
-    return filterController.indexForKey(key) >= 0
-  }
-
-  function setCursor(key) {
+  function select(key) {
     filterController.selectIndex(filterController.indexForKey(key))
   }
 
+  function targetSelected(key) {
+    return cursorKey === key
+  }
+
+  function onOff(value) {
+    return value ? "On" : "Off"
+  }
+
+  function rowValue(entry) {
+    if (!connected) return "Unavailable"
+    if (entry.kind === "toggle") return onOff(service[entry.property])
+    if (entry.kind === "number") return Math.round(transparencyLive) + "%"
+    if (entry.kind === "choice") return service.antiWind.charAt(0).toUpperCase() + service.antiWind.slice(1)
+    return ""
+  }
+
+  function rowActive(entry) {
+    if (!connected) return false
+    if (entry.kind === "toggle") return service[entry.property]
+    if (entry.kind === "number") return service.transparency > 0
+    if (entry.kind === "choice") return service.antiWind !== "off"
+    return false
+  }
+
   function toggle(entry) {
-    if (!controllable) return
-    service.setValue(entry.key, service[entry.property] ? "off" : "on")
+    if (controllable) service.setValue(entry.key, service[entry.property] ? "off" : "on")
+  }
+
+  function setAntiWind(mode) {
+    if (controllable && service.antiWind !== mode) service.setValue("anti-wind", mode)
   }
 
   function stepAntiWind(delta) {
     if (!controllable) return
     var index = antiWindModes.indexOf(service.antiWind)
-    var next = Math.max(0, Math.min(antiWindModes.length - 1, index + delta))
-    if (next !== index) service.setValue("anti-wind", antiWindModes[next])
+    setAntiWind(antiWindModes[Math.max(0, Math.min(antiWindModes.length - 1, index + delta))])
   }
 
   function stepTransparency(delta) {
     if (!controllable) return
     var current = transparencyDebounce.running ? transparencyDebounce.value : service.transparency
-    var next = Math.max(0, Math.min(100, current + delta))
+    var next = Math.max(0, Math.min(100, current + delta * transparencyStep))
     if (next === current) return
-    transparencySlider.liveValue = next
-    transparencyDebounce.value = next
+    setTransparency(next)
+  }
+
+  function setTransparency(value) {
+    transparencyLive = value
+    transparencyDebounce.value = value
     transparencyDebounce.restart()
   }
 
-  function activate(entry) {
+  function activateEntry(entry) {
     if (!entry) return
-    if (entry.kind === "toggle") toggle(entry)
-    else if (entry.kind === "choice" && controllable)
-      service.setValue("anti-wind", antiWindModes[(antiWindModes.indexOf(service.antiWind) + 1) % antiWindModes.length])
+    if (entry.kind === "refresh") { if (service) service.refresh() }
+    else if (entry.kind === "toggle") toggle(entry.row)
+    else if (entry.kind === "step") stepTransparency(entry.delta)
+    else if (entry.kind === "mode") setAntiWind(entry.value)
   }
 
   function adjust(direction) {
-    var entry = filterController.selectedEntry()
-    if (!entry) return false
-    if (entry.kind === "slider") stepTransparency(direction * transparencySlider.step)
-    else if (entry.kind === "choice") stepAntiWind(direction)
+    if (cursorRowKey === "transparency") stepTransparency(direction)
+    else if (cursorRowKey === "anti-wind") stepAntiWind(direction)
     else return false
     return true
   }
 
+  function batteryIcon(level) {
+    if (level >= 95) return String.fromCodePoint(0xf0079)
+    return String.fromCodePoint(0xf007a + Math.max(0, Math.min(8, Math.floor(level / 10) - 1)))
+  }
+
   function heroMeta() {
-    if (!service) return "Waiting for headset"
-    if (service.connected) return "Connected · Battery " + service.battery + "%"
-    return service.error ? service.error : "Waiting for headset"
+    if (connected) return ""
+    if (service && service.error) return service.error
+    return "Waiting for headset"
   }
 
   function scrollCursorIntoView() {
-    var entry = filterController.selectedEntry()
-    var item = entry ? rowItems[entry.key] : null
-    if (!item || !item.visible) return
+    var item = null
+    if (cursorRowKey === "action:refresh") item = noiseHeading
+    else {
+      var repeaters = [noiseRepeater, behaviourRepeater]
+      for (var r = 0; r < repeaters.length && !item; r++)
+        for (var i = 0; i < repeaters[r].count; i++)
+          if (repeaters[r].itemAt(i) && repeaters[r].itemAt(i).rowKey === cursorRowKey) item = repeaters[r].itemAt(i)
+    }
+    if (!item) return
     var point = item.mapToItem(contentColumn, 0, 0)
     if (point.y < scrollArea.contentY) scrollArea.contentY = point.y
     else if (point.y + item.height > scrollArea.contentY + scrollArea.height)
       scrollArea.contentY = point.y + item.height - scrollArea.height
   }
 
-  readonly property var rowItems: ({
-    "anc": ancRow,
-    "adaptive": adaptiveRow,
-    "transparency": transparencyRow,
-    "smart-pause": smartPauseRow,
-    "on-head-detection": onHeadRow,
-    "auto-answer": autoAnswerRow,
-    "comfort-call": comfortCallRow,
-    "anti-wind": antiWindRow
-  })
-
   function open(payloadJson) {
     opened = true
     filterController.reset()
-    if (service) service.refresh()
+    if (service) {
+      transparencyLive = service.transparency
+      service.refresh()
+    }
     Qt.callLater(function() {
       scrollArea.contentY = 0
       filterController.forceActiveFocus()
@@ -136,31 +186,221 @@ Item {
     else close()
   }
 
-  component ToggleRow: Toggle {
-    id: toggleRow
+  component ControlButton: BorderSurface {
+    id: controlButton
     required property var panel
-    required property string rowKey
-    readonly property var entry: panel.rows.find(function(row) { return row.key === rowKey })
-    visible: panel.rowVisible(rowKey)
-    width: parent.width
-    label: entry.primaryText
-    description: entry.secondaryText
-    foreground: panel.foreground
-    fontFamily: panel.fontFamily
-    checked: panel.service ? panel.service[entry.property] : false
-    enabled: panel.controllable
-    hasCursor: panel.hasCursor(rowKey)
-    onHovered: function(isHovered) { if (isHovered) panel.setCursor(toggleRow.rowKey) }
-    onClicked: {
-      panel.setCursor(rowKey)
-      panel.toggle(entry)
+    property string label: ""
+    property string targetKey: ""
+    property bool selected: false
+    readonly property bool actionable: targetKey !== "" && panel.controllable
+    readonly property bool hot: actionable && (buttonMouse.containsMouse || panel.targetSelected(targetKey))
+    signal clicked()
+
+    width: Math.max(Style.space(28), buttonLabel.implicitWidth + Style.space(12))
+    height: Style.space(24)
+    radius: Style.cornerRadius
+    color: hot ? Style.hoverFillFor(panel.foreground, panel.foreground)
+      : (selected ? Style.selectedFillFor(panel.foreground, Color.accent) : "transparent")
+    borderSpec: hot ? Border.controlSpec("hover-cursor", panel.foreground, panel.foreground) : Border.none()
+
+    Text {
+      id: buttonLabel
+      anchors.centerIn: parent
+      text: controlButton.label
+      color: controlButton.panel.foreground
+      opacity: controlButton.panel.connected ? 1 : 0.5
+      font.family: controlButton.panel.fontFamily
+      font.pixelSize: Style.font.body
+      font.bold: controlButton.selected
+    }
+
+    MouseArea {
+      id: buttonMouse
+      anchors.fill: parent
+      hoverEnabled: true
+      enabled: controlButton.targetKey !== ""
+      cursorShape: controlButton.actionable ? Qt.PointingHandCursor : Qt.ArrowCursor
+      onEntered: controlButton.panel.select(controlButton.targetKey)
+      onClicked: if (controlButton.actionable) controlButton.clicked()
     }
   }
 
-  component SectionHeader: PanelSectionHeader {
+  component ControlGroup: BorderSurface {
+    id: controlGroup
     required property var panel
+    default property alias content: groupRow.data
+    implicitWidth: groupRow.implicitWidth + Style.space(4)
+    implicitHeight: groupRow.implicitHeight + Style.space(4)
+    radius: Style.cornerRadius
+    color: Qt.rgba(panel.foreground.r, panel.foreground.g, panel.foreground.b, 0.04)
+    borderSpec: Border.flat(Qt.rgba(panel.foreground.r, panel.foreground.g, panel.foreground.b, 0.10), 1)
+
+    Row {
+      id: groupRow
+      anchors.centerIn: parent
+      spacing: Style.space(2)
+    }
+  }
+
+  component ControlRow: CursorSurface {
+    id: controlRow
+    required property var panel
+    required property var modelData
+    readonly property string rowKey: modelData.key
+    readonly property bool isToggle: modelData.kind === "toggle"
+
+    x: Style.space(8)
+    width: Math.max(0, (parent ? parent.width : 0) - Style.space(16))
+    implicitHeight: rowContent.implicitHeight + Style.space(12)
+    hasCursor: isToggle && panel.targetSelected(rowKey)
     foreground: panel.foreground
-    fontFamily: panel.fontFamily
+    accent: panel.foreground
+
+    MouseArea {
+      anchors.fill: parent
+      hoverEnabled: true
+      enabled: controlRow.isToggle
+      cursorShape: controlRow.panel.controllable ? Qt.PointingHandCursor : Qt.ArrowCursor
+      onEntered: controlRow.panel.select(controlRow.rowKey)
+      onClicked: controlRow.panel.toggle(controlRow.modelData)
+    }
+
+    Column {
+      id: rowContent
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      anchors.leftMargin: Style.space(8)
+      anchors.rightMargin: Style.space(8)
+      spacing: Style.space(6)
+
+      Row {
+        width: parent.width
+        spacing: Style.space(10)
+
+        Text {
+          width: Style.space(22)
+          anchors.verticalCenter: parent.verticalCenter
+          text: String.fromCodePoint(controlRow.modelData.icon)
+          color: controlRow.panel.foreground
+          opacity: controlRow.panel.rowActive(controlRow.modelData) ? 1 : 0.45
+          font.family: controlRow.panel.fontFamily
+          font.pixelSize: Style.font.icon
+          horizontalAlignment: Text.AlignHCenter
+        }
+
+        Column {
+          width: Math.max(0, parent.width - Style.space(32) - trailing.width - parent.spacing)
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.space(2)
+
+          Text {
+            width: parent.width
+            text: controlRow.modelData.primaryText
+            textFormat: Text.PlainText
+            color: controlRow.panel.foreground
+            font.family: controlRow.panel.fontFamily
+            font.pixelSize: Style.font.body
+            elide: Text.ElideRight
+          }
+
+          Text {
+            width: parent.width
+            text: controlRow.panel.rowValue(controlRow.modelData)
+            textFormat: Text.PlainText
+            color: controlRow.panel.mutedColor
+            font.family: controlRow.panel.fontFamily
+            font.pixelSize: Style.font.caption
+            elide: Text.ElideRight
+          }
+        }
+
+        Item {
+          id: trailing
+          anchors.verticalCenter: parent.verticalCenter
+          width: controlRow.isToggle ? toggleSwitch.implicitWidth
+            : (controlRow.modelData.kind === "number" ? stepper.implicitWidth : modes.implicitWidth)
+          height: controlRow.isToggle ? toggleSwitch.implicitHeight
+            : (controlRow.modelData.kind === "number" ? stepper.implicitHeight : modes.implicitHeight)
+
+          ToggleSwitch {
+            id: toggleSwitch
+            visible: controlRow.isToggle
+            checked: controlRow.panel.rowActive(controlRow.modelData)
+            interactive: false
+            busy: controlRow.panel.service !== null && controlRow.panel.service.busy
+            opacity: controlRow.panel.connected ? 1 : 0.5
+            foreground: controlRow.panel.foreground
+          }
+
+          ControlGroup {
+            id: stepper
+            visible: controlRow.modelData.kind === "number"
+            panel: controlRow.panel
+
+            ControlButton {
+              panel: controlRow.panel
+              label: "−"
+              targetKey: "transparency:decrement"
+              onClicked: controlRow.panel.stepTransparency(-1)
+            }
+            ControlButton {
+              panel: controlRow.panel
+              label: controlRow.panel.rowValue(controlRow.modelData)
+            }
+            ControlButton {
+              panel: controlRow.panel
+              label: "+"
+              targetKey: "transparency:increment"
+              onClicked: controlRow.panel.stepTransparency(1)
+            }
+          }
+
+          ControlGroup {
+            id: modes
+            visible: controlRow.modelData.kind === "choice"
+            panel: controlRow.panel
+
+            Repeater {
+              model: controlRow.modelData.kind === "choice" ? controlRow.panel.antiWindModes : []
+
+              ControlButton {
+                required property string modelData
+                panel: controlRow.panel
+                label: modelData.charAt(0).toUpperCase() + modelData.slice(1)
+                targetKey: "anti-wind:" + modelData
+                selected: controlRow.panel.connected && controlRow.panel.service.antiWind === modelData
+                onClicked: controlRow.panel.setAntiWind(modelData)
+              }
+            }
+          }
+        }
+      }
+
+      PanelSlider {
+        visible: controlRow.modelData.kind === "number"
+        x: Style.space(32)
+        width: parent.width - Style.space(32)
+        bar: controlRow.panel.panelBar
+        minimum: 0
+        maximum: 100
+        step: 5
+        value: controlRow.panel.transparencyLive
+        enabled: controlRow.panel.controllable
+        opacity: enabled ? 1 : 0.5
+        onMoved: function(value) {
+          controlRow.panel.select("transparency:decrement")
+          controlRow.panel.setTransparency(Math.round(value))
+        }
+      }
+    }
+  }
+
+  Connections {
+    target: root.service
+    function onTransparencyChanged() {
+      if (!transparencyDebounce.running) root.transparencyLive = root.service.transparency
+    }
   }
 
   PanelWindow {
@@ -184,14 +424,14 @@ Item {
     Rectangle {
       anchors.centerIn: parent
       width: Math.min(Style.space(430), parent.width - Style.space(32))
-      height: Math.min(contentColumn.implicitHeight + Style.space(32), parent.height - Style.space(32))
+      height: Math.min(contentColumn.implicitHeight + Style.space(32), Style.space(670), parent.height - Style.space(32))
       color: Color.background
       radius: Style.cornerRadius
 
       MouseArea { anchors.fill: parent; onClicked: {} }
 
       // FilterablePanel leaves Left and Right unhandled, so they reach this
-      // item and adjust the slider or anti-wind row under the cursor.
+      // item and adjust the transparency or anti-wind row under the cursor.
       Item {
         anchors.fill: parent
         Keys.onPressed: function(event) {
@@ -203,7 +443,8 @@ Item {
           id: filterController
           anchors.fill: parent
           model: root.rows
-          onActivateRequested: function(entry) { root.activate(entry) }
+          navigationModel: root.buildNavigationEntries(filteredModel)
+          onActivateRequested: function(entry) { root.activateEntry(entry) }
           onCloseRequested: root.requestClose()
           onRefreshRequested: if (root.service) root.service.refresh()
           onRevealRequested: Qt.callLater(root.scrollCursorIntoView)
@@ -226,135 +467,95 @@ Item {
               spacing: Style.space(12)
 
               PanelHeader {
-                title: "momentumctl"
+                title: filterController.filterText || "Headphones"
                 meta: root.heroMeta()
-                detail: root.service && root.service.connected ? "HEADPHONES" : "OFFLINE"
                 foreground: root.foreground
                 fontFamily: root.fontFamily
-                iconOpacity: root.service && root.service.connected ? 1 : 0.5
+                iconOpacity: root.connected ? 1 : 0.5
                 iconComponent: Component {
                   Text {
-                    text: "󰋋"
+                    text: String.fromCodePoint(root.connected ? 0xf02cb : 0xf07ce)
                     color: root.foreground
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.display
                   }
                 }
-              }
-
-              Text {
-                visible: filterController.filterText !== ""
-                width: parent.width
-                text: filterController.count > 0
-                  ? "Filter: " + filterController.filterText
-                  : "No matches for “" + filterController.filterText + "”"
-                textFormat: Text.PlainText
-                color: root.mutedColor
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-                elide: Text.ElideRight
-              }
-
-              PanelSeparator { visible: root.sectionVisible("Noise control"); foreground: root.foreground }
-              SectionHeader { panel: root; visible: root.sectionVisible("Noise control"); text: "NOISE CONTROL" }
-
-              ToggleRow { id: ancRow; panel: root; rowKey: "anc" }
-              ToggleRow { id: adaptiveRow; panel: root; rowKey: "adaptive" }
-
-              CursorSurface {
-                id: transparencyRow
-                visible: root.rowVisible("transparency")
-                width: parent.width
-                implicitHeight: transparencyColumn.implicitHeight + Style.spacing.huge
-                hasCursor: root.hasCursor("transparency")
-                foreground: root.foreground
-                bordered: true
-
-                HoverHandler {
-                  onHoveredChanged: if (hovered) root.setCursor("transparency")
-                }
-
-                Column {
-                  id: transparencyColumn
-                  anchors.left: parent.left
-                  anchors.right: parent.right
-                  anchors.verticalCenter: parent.verticalCenter
-                  anchors.leftMargin: Style.spacing.rowPaddingX
-                  anchors.rightMargin: Style.spacing.rowPaddingX
-                  spacing: Style.space(6)
-
-                  Item {
-                    width: parent.width
-                    implicitHeight: Math.max(transparencyLabel.implicitHeight, transparencyValue.implicitHeight)
+                trailingControl: Component {
+                  Row {
+                    visible: root.connected && root.service.battery >= 0
+                    spacing: Style.space(4)
                     Text {
-                      id: transparencyLabel
-                      text: "Transparency"
+                      anchors.verticalCenter: parent.verticalCenter
+                      text: root.batteryIcon(root.service ? root.service.battery : 0)
                       color: root.foreground
                       font.family: root.fontFamily
-                      font.pixelSize: Style.font.subtitle
-                      font.bold: true
-                      anchors.left: parent.left
+                      font.pixelSize: Style.font.icon
                     }
                     Text {
-                      id: transparencyValue
-                      text: Math.round(transparencySlider.liveValue) + "%"
+                      anchors.verticalCenter: parent.verticalCenter
+                      text: (root.service ? root.service.battery : 0) + "%"
                       color: root.mutedColor
                       font.family: root.fontFamily
                       font.pixelSize: Style.font.caption
-                      anchors.right: parent.right
-                      anchors.verticalCenter: transparencyLabel.verticalCenter
-                    }
-                  }
-
-                  PanelSlider {
-                    id: transparencySlider
-                    bar: root.panelBar
-                    width: parent.width
-                    minimum: 0
-                    maximum: 100
-                    step: 5
-                    value: root.service ? root.service.transparency : 0
-                    enabled: root.controllable
-                    opacity: enabled ? 1 : 0.5
-                    onMoved: function(value) {
-                      root.setCursor("transparency")
-                      transparencyDebounce.value = Math.round(value)
-                      transparencyDebounce.restart()
                     }
                   }
                 }
               }
 
-              PanelSeparator { visible: root.sectionVisible("Behaviour"); foreground: root.foreground }
-              SectionHeader { panel: root; visible: root.sectionVisible("Behaviour"); text: "BEHAVIOUR" }
-
-              ToggleRow { id: smartPauseRow; panel: root; rowKey: "smart-pause" }
-              ToggleRow { id: onHeadRow; panel: root; rowKey: "on-head-detection" }
-              ToggleRow { id: autoAnswerRow; panel: root; rowKey: "auto-answer" }
-              ToggleRow { id: comfortCallRow; panel: root; rowKey: "comfort-call" }
-
-              PanelSeparator { visible: root.sectionVisible("Anti-wind"); foreground: root.foreground }
-              SectionHeader { panel: root; visible: root.sectionVisible("Anti-wind"); text: "ANTI-WIND" }
-
-              ButtonGroup {
-                id: antiWindRow
-                visible: root.rowVisible("anti-wind")
+              Column {
                 width: parent.width
-                focusable: false
-                enabled: root.controllable
-                opacity: enabled ? 1 : 0.5
-                options: root.antiWindModes.map(function(mode) {
-                  return { value: mode, label: mode.toUpperCase() }
-                })
-                value: root.service ? root.service.antiWind : "off"
-                cursorIndex: root.hasCursor("anti-wind") ? root.antiWindModes.indexOf(value) : -1
-                foreground: root.foreground
-                fontFamily: root.fontFamily
-                onHovered: function(index, isHovered) { if (isHovered) root.setCursor("anti-wind") }
-                onChanged: function(mode) {
-                  root.setCursor("anti-wind")
-                  if (root.controllable) root.service.setValue("anti-wind", mode)
+                spacing: Style.space(2)
+
+                SectionHeading {
+                  id: noiseHeading
+                  title: "Noise control"
+                  foreground: root.foreground
+                  fontFamily: root.fontFamily
+                  refreshable: true
+                  refreshing: root.service !== null && root.service.busy
+                  hasCursor: root.targetSelected("action:refresh")
+                  onRefreshHovered: root.select("action:refresh")
+                  onRefreshRequested: if (root.service) root.service.refresh()
                 }
+
+                Item { width: 1; height: Style.space(4) }
+
+                Repeater {
+                  id: noiseRepeater
+                  model: root.sectionRows("Noise control")
+                  ControlRow { panel: root }
+                }
+              }
+
+              Column {
+                visible: root.sectionRows("Behaviour").length > 0
+                width: parent.width
+                spacing: Style.space(2)
+
+                SectionHeading {
+                  title: "Behaviour"
+                  foreground: root.foreground
+                  fontFamily: root.fontFamily
+                }
+
+                Item { width: 1; height: Style.space(4) }
+
+                Repeater {
+                  id: behaviourRepeater
+                  model: root.sectionRows("Behaviour")
+                  ControlRow { panel: root }
+                }
+              }
+
+              Text {
+                visible: filterController.filterText !== "" && filterController.count === 0
+                width: parent.width
+                text: "No matches for “" + filterController.filterText + "”"
+                textFormat: Text.PlainText
+                color: root.mutedColor
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                horizontalAlignment: Text.AlignHCenter
               }
             }
           }
