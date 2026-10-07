@@ -22,7 +22,7 @@ description = "Type-check the CLI"
 depends = ["install"]
 run = "bun run typecheck"
 
-[tasks."lint:cli"]
+[tasks.lint]
 description = "Lint the CLI with the shared Oxlint rules"
 depends = ["install"]
 run = "bun run lint"
@@ -48,10 +48,14 @@ git ls-files -z --cached --others --exclude-standard | xargs -0 cp --parents -t 
 omarchy plugin validate "$dir"
 '''
 
-[tasks.lint]
+[tasks."lint:qml"]
 description = "Lint the plugin QML"
 run = "qmllint -I /usr/lib/qt6/qml Panel.qml PanelFlickable.qml PanelHeader.qml SectionHeading.qml Service.qml"
 
 [tasks.check]
-description = "Check the plugin and the CLI"
-depends = ["validate", "lint", "typecheck", "lint:cli", "format:check", "test"]
+description = "Test, lint, type-check and verify formatting of the CLI"
+depends = ["test", "lint", "typecheck", "format:check"]
+
+[tasks."check:plugin"]
+description = "Validate the plugin manifest and lint the QML"
+depends = ["validate", "lint:qml"]

@@ -22,7 +22,7 @@
 
 ## Checks
 
-- Run `mise run check` after changing the CLI, QML or the manifest.
+- Run `mise run check` after changing the CLI, and `mise run check:plugin` after changing QML or the manifest.
 - Test headset changes against a real headset and restore the previous settings afterwards.
 
 ## Safety
