@@ -155,6 +155,8 @@ Item {
     var index = entry.choices.indexOf(service[entry.property])
     var next = index < 0 ? (delta > 0 ? 0 : entry.choices.length - 1)
       : (index + delta + entry.choices.length) % entry.choices.length
+    eqDebounce.stop()
+    if (service.eq) eqLive = service.eq.slice()
     service.setValue(entry.key, entry.choices[next])
   }
 
@@ -543,6 +545,14 @@ Item {
             onMoved: function(value) {
               controlRow.panel.select("eq-band:" + bandRow.index)
               controlRow.panel.setEqBand(bandRow.index, value)
+            }
+
+            // Scrolling over the stacked sliders would nudge the bands, so
+            // they only change by dragging, clicking or the keyboard.
+            MouseArea {
+              anchors.fill: parent
+              acceptedButtons: Qt.NoButton
+              onWheel: function(wheel) { wheel.accepted = true }
             }
           }
 
