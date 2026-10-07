@@ -20,6 +20,8 @@ Item {
   // Null when the firmware doesn't support it.
   property var bassBoost: null
   property var touchControls: null
+  // "never" or minutes as a string, matching the panel's choices.
+  property var autoPowerOff: null
   property int transparency: 0
   // The level the headset reports while adaptive is on is its own, so the
   // last custom level is kept separately for the slider.
@@ -47,6 +49,7 @@ Item {
     smartPause = values.smartPause === true
     bassBoost = typeof values.bassBoost === "boolean" ? values.bassBoost : null
     touchControls = typeof values.touchControls === "boolean" ? values.touchControls : null
+    autoPowerOff = !isFinite(values.autoPowerOff) || values.autoPowerOff === null ? null : (values.autoPowerOff === 0 ? "never" : String(values.autoPowerOff))
     if (!adaptive) customTransparency = transparency
     return true
   }

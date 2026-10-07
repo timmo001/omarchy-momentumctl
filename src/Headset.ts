@@ -12,7 +12,14 @@ const Command = {
   // A "disabled" flag, so 0 means the touch controls are on.
   getTouchControls: 0x1607,
   setTouchControls: 0x1606,
+  // Both take a leading index byte (0); the value is seconds, 0 for never.
+  getAutoPowerOff: 0x0601,
+  setAutoPowerOff: 0x0600,
 } as const;
+
+export const autoPowerOffChoices = ["never", "15", "30", "60"] as const;
+
+export type AutoPowerOff = (typeof autoPowerOffChoices)[number];
 
 // One-byte switches, as [get, set] command pairs.
 export const switches = {
@@ -48,6 +55,8 @@ export interface Status {
   /** Null when the firmware rejects the command. */
   readonly bassBoost: boolean | null;
   readonly touchControls: boolean | null;
+  /** Minutes, with 0 meaning never. */
+  readonly autoPowerOff: number | null;
 }
 
 // Newer settings can be missing on older firmware, so a rejection reports
@@ -94,6 +103,24 @@ const writeNoiseField = Effect.fnUntraced(function* (
   yield* session.request(Command.setNoiseTable, table);
 });
 
+const autoPowerOff = Effect.gen(function* () {
+  const session = yield* Session;
+
+  const payload = yield* session.request(
+    Command.getAutoPowerOff,
+    Uint8Array.of(0),
+  );
+
+  if (payload.length < 3)
+    return yield* new GaiaError({
+      message: "The headset sent a short auto power off reply",
+    });
+
+  const seconds = new DataView(payload.buffer, payload.byteOffset).getUint16(1);
+
+  return seconds / 60;
+});
+
 export const status = Effect.gen(function* () {
   const table = yield* noiseTable;
 
@@ -117,6 +144,7 @@ export const status = Effect.gen(function* () {
         Effect.map((value) => value === 0),
       ),
     ),
+    autoPowerOff: yield* optional(autoPowerOff),
   } satisfies Status;
 });
 
@@ -136,3 +164,13 @@ export const setSwitch = (name: Switch, on: boolean) =>
 
 export const setTouchControls = (on: boolean) =>
   writeByte(Command.setTouchControls, on ? 0 : 1);
+
+export const setAutoPowerOff = Effect.fnUntraced(function* (
+  choice: AutoPowerOff,
+) {
+  const session = yield* Session;
+  const payload = new Uint8Array(3);
+  const seconds = choice === "never" ? 0 : Number(choice) * 60;
+  new DataView(payload.buffer).setUint16(1, seconds);
+  yield* session.request(Command.setAutoPowerOff, payload);
+});

@@ -8,6 +8,12 @@ import packageJson from "../package.json" with { type: "json" };
 const onOff = (value: boolean | null) =>
   value === null ? "unsupported" : value ? "on" : "off";
 
+const autoPowerOffLabel = (minutes: number | null) => {
+  if (minutes === null) return "unsupported";
+
+  return minutes === 0 ? "never" : `${minutes} minutes`;
+};
+
 const fail = (error: GaiaError | GaiaRejected) =>
   Console.error(`momentum: ${error.message}`).pipe(
     Effect.andThen(
@@ -60,6 +66,7 @@ const statusCommand = Command.make(
         `On-head detection: ${onOff(status.onHeadDetection)}`,
         `Smart pause: ${onOff(status.smartPause)}`,
         `Touch controls: ${onOff(status.touchControls)}`,
+        `Auto power off: ${autoPowerOffLabel(status.autoPowerOff)}`,
       ].join("\n"),
     );
   }),
@@ -101,6 +108,13 @@ const setCommand = Command.make("set").pipe(
       ({ mode }) => withHeadset(Headset.setAntiWind(mode)),
     ).pipe(Command.withDescription("Set wind noise reduction")),
     switchCommand("auto-answer", "Answer calls when the headset is put on"),
+    Command.make(
+      "auto-power-off",
+      { minutes: Argument.Literals("minutes", Headset.autoPowerOffChoices) },
+      ({ minutes }) => withHeadset(Headset.setAutoPowerOff(minutes)),
+    ).pipe(
+      Command.withDescription("Turn the headset off after a while unused"),
+    ),
     switchCommand("bass-boost", "Boost the low end"),
     switchCommand("comfort-call", "Hear your own voice during calls"),
     switchCommand(

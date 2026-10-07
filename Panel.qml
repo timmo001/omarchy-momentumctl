@@ -17,6 +17,7 @@ Item {
   readonly property bool connected: service !== null && service.connected
   readonly property bool controllable: connected && !service.busy
   readonly property var antiWindModes: ["off", "auto", "max"]
+  readonly property var autoPowerOffChoices: ["never", "15", "30", "60"]
   readonly property var transparencyModes: ["off", "adaptive", "custom"]
   readonly property string transparencyMode: connected ? service.transparencyMode : ""
   readonly property int transparencyStep: 10
@@ -47,6 +48,8 @@ Item {
     toggleRow("comfort-call", "comfortCall", 0xf05cb, "Comfort Call", "Behaviour")
   ]).concat(service && service.touchControls !== null ? [
     toggleRow("touch-controls", "touchControls", 0xf0741, "Touch controls", "Behaviour")
+  ] : []).concat(service && service.autoPowerOff !== null ? [
+    { key: "auto-power-off", kind: "choice", choices: autoPowerOffChoices, property: "autoPowerOff", icon: 0xf0904, primaryText: "Auto power off", secondaryText: "never 15 30 60 minutes", section: "Behaviour" }
   ] : [])
 
   function toggleRow(key, property, icon, label, section) {
@@ -90,6 +93,7 @@ Item {
   }
 
   function choiceLabel(value) {
+    if (/^\d+$/.test(value)) return value + " min"
     return value.charAt(0).toUpperCase() + value.slice(1)
   }
 
@@ -106,7 +110,7 @@ Item {
   function rowActive(entry) {
     if (!connected) return false
     if (entry.kind === "toggle") return service[entry.property]
-    return service[entry.property] !== "off"
+    return service[entry.property] !== "off" && service[entry.property] !== "never"
   }
 
   function toggle(entry) {
