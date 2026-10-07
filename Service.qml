@@ -18,8 +18,11 @@ Item {
   property bool onHeadDetection: false
   property bool smartPause: false
   property int transparency: 0
+  // The level the headset reports while adaptive is on is its own, so the
+  // last custom level is kept separately for the slider.
+  property int customTransparency: 0
   property bool statusValid: false
-  readonly property string noiseMode: !anc ? "off" : (adaptive ? "adaptive" : "custom")
+  readonly property string transparencyMode: !anc ? "off" : (adaptive ? "adaptive" : "custom")
   property var pendingCommands: []
 
   function parseStatus(text) {
@@ -43,6 +46,7 @@ Item {
     comfortCall = values["Comfort call"] === "on"
     onHeadDetection = values["On-head detection"] === "on"
     smartPause = values["Smart pause"] === "on"
+    if (!adaptive) customTransparency = transparency
     return true
   }
 
@@ -69,14 +73,21 @@ Item {
     controlProcess.running = true
   }
 
-  function setNoiseMode(mode) {
-    if (mode === noiseMode) return
+  function setTransparencyMode(mode) {
+    if (mode === transparencyMode) return
     if (mode === "off") setValues([["anc", "off"]])
     else {
       var commands = anc ? [] : [["anc", "on"]]
       if (adaptive !== (mode === "adaptive")) commands.push(["adaptive", mode === "adaptive" ? "on" : "off"])
       setValues(commands)
     }
+  }
+
+  function setCustomTransparency(value) {
+    var commands = anc ? [] : [["anc", "on"]]
+    if (adaptive) commands.push(["adaptive", "off"])
+    commands.push(["transparency", value])
+    setValues(commands)
   }
 
   Process {

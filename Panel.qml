@@ -17,10 +17,10 @@ Item {
   readonly property bool connected: service !== null && service.connected
   readonly property bool controllable: connected && !service.busy
   readonly property var antiWindModes: ["off", "auto", "max"]
-  readonly property var noiseModes: ["adaptive", "custom", "off"]
-  readonly property string noiseMode: connected ? service.noiseMode : ""
+  readonly property var transparencyModes: ["off", "adaptive", "custom"]
+  readonly property string transparencyMode: connected ? service.transparencyMode : ""
   readonly property int transparencyStep: 10
-  // Shared live value so the stepper label, slider, and keyboard steps agree
+  // Shared live value so the custom button, slider, and keyboard steps agree
   // while a transparency change is still waiting to be sent.
   property int transparencyLive: 0
   readonly property string cursorKey: filterController.selectedEntry() ? filterController.selectedEntry().key : ""
@@ -32,13 +32,11 @@ Item {
     readonly property string fontFamily: root.fontFamily
   }
 
-  // The noise mode owns the rest of the section: adaptive takes over
-  // transparency, and with noise control off there is nothing left to tune.
+  // Transparency covers the whole noise control state: off, adaptive, or a
+  // custom level. Anti-wind has nothing to act on with noise control off.
   readonly property var rows: [
-    { key: "noise-mode", kind: "choice", choices: noiseModes, property: "noiseMode", icon: 0xf0581, primaryText: "Noise mode", secondaryText: "adaptive custom off", section: "Noise control" }
-  ].concat(noiseMode === "custom" ? [
-    { key: "transparency", kind: "number", icon: 0xf07c5, primaryText: "Transparency", secondaryText: "", section: "Noise control" }
-  ] : []).concat(noiseMode !== "off" ? [
+    { key: "transparency", kind: "transparency", choices: transparencyModes, property: "transparencyMode", icon: 0xf07c5, primaryText: "Transparency", secondaryText: "off adaptive custom noise", section: "Noise control" }
+  ].concat(transparencyMode !== "off" ? [
     { key: "anti-wind", kind: "choice", choices: antiWindModes, property: "antiWind", icon: 0xf059d, primaryText: "Anti-wind", secondaryText: "off auto max", section: "Noise control" }
   ] : []).concat([
     toggleRow("smart-pause", "smartPause", 0xf03e6, "Smart Pause", "Behaviour"),
@@ -59,10 +57,7 @@ Item {
       var entry = entries[i]
       if (entry.kind === "toggle")
         targets.push({ key: entry.key, rowKey: entry.key, row: entry, kind: "toggle" })
-      else if (entry.kind === "number") {
-        targets.push({ key: entry.key + ":decrement", rowKey: entry.key, row: entry, kind: "step", delta: -1 })
-        targets.push({ key: entry.key + ":increment", rowKey: entry.key, row: entry, kind: "step", delta: 1 })
-      } else if (entry.kind === "choice") {
+      else if (entry.kind === "choice" || entry.kind === "transparency") {
         for (var choice = 0; choice < entry.choices.length; choice++)
           targets.push({ key: entry.key + ":" + entry.choices[choice], rowKey: entry.key, row: entry, kind: "choice", value: entry.choices[choice] })
       }
@@ -86,24 +81,26 @@ Item {
     return value ? "On" : "Off"
   }
 
-  function choiceLabel(value) {
+  function choiceLabel(entry, value) {
+    if (entry.kind === "transparency" && value === "custom") return Math.round(transparencyLive) + "%"
     return value.charAt(0).toUpperCase() + value.slice(1)
   }
 
   function rowValue(entry) {
     if (!connected) return "Unavailable"
     if (entry.kind === "toggle") return onOff(service[entry.property])
-    if (entry.kind === "number") return Math.round(transparencyLive) + "%"
-    if (entry.kind === "choice") return choiceLabel(service[entry.property])
+    if (entry.kind === "transparency") {
+      if (transparencyMode === "adaptive") return "Adaptive, " + service.transparency + "%"
+      return choiceLabel(entry, transparencyMode)
+    }
+    if (entry.kind === "choice") return choiceLabel(entry, service[entry.property])
     return ""
   }
 
   function rowActive(entry) {
     if (!connected) return false
     if (entry.kind === "toggle") return service[entry.property]
-    if (entry.kind === "number") return service.transparency > 0
-    if (entry.kind === "choice") return service[entry.property] !== "off"
-    return false
+    return service[entry.property] !== "off"
   }
 
   function toggle(entry) {
@@ -112,7 +109,7 @@ Item {
 
   function setChoice(entry, value) {
     if (!controllable || service[entry.property] === value) return
-    if (entry.key === "noise-mode") service.setNoiseMode(value)
+    if (entry.kind === "transparency") service.setTransparencyMode(value)
     else service.setValue(entry.key, value)
   }
 
@@ -124,9 +121,9 @@ Item {
 
   function stepTransparency(delta) {
     if (!controllable) return
-    var current = transparencyDebounce.running ? transparencyDebounce.value : service.transparency
+    var current = transparencyDebounce.running ? transparencyDebounce.value : transparencyLive
     var next = Math.max(0, Math.min(100, current + delta * transparencyStep))
-    if (next === current) return
+    if (next === current && transparencyMode === "custom") return
     setTransparency(next)
   }
 
@@ -140,14 +137,13 @@ Item {
     if (!entry) return
     if (entry.kind === "refresh") { if (service) service.refresh() }
     else if (entry.kind === "toggle") toggle(entry.row)
-    else if (entry.kind === "step") stepTransparency(entry.delta)
     else if (entry.kind === "choice") setChoice(entry.row, entry.value)
   }
 
   function adjust(direction) {
     var entry = filterController.selectedEntry()
     if (!entry || !entry.row) return false
-    if (entry.row.kind === "number") stepTransparency(direction)
+    if (entry.row.kind === "transparency") stepTransparency(direction)
     else if (entry.row.kind === "choice") stepChoice(entry.row, direction)
     else return false
     return true
@@ -184,7 +180,7 @@ Item {
     opened = true
     filterController.reset()
     if (service) {
-      transparencyLive = service.transparency
+      transparencyLive = service.customTransparency
       service.refresh()
     }
     Qt.callLater(function() {
@@ -332,10 +328,8 @@ Item {
         Item {
           id: trailing
           anchors.verticalCenter: parent.verticalCenter
-          width: controlRow.isToggle ? toggleSwitch.implicitWidth
-            : (controlRow.modelData.kind === "number" ? stepper.implicitWidth : modes.implicitWidth)
-          height: controlRow.isToggle ? toggleSwitch.implicitHeight
-            : (controlRow.modelData.kind === "number" ? stepper.implicitHeight : modes.implicitHeight)
+          width: controlRow.isToggle ? toggleSwitch.implicitWidth : modes.implicitWidth
+          height: controlRow.isToggle ? toggleSwitch.implicitHeight : modes.implicitHeight
 
           ToggleSwitch {
             id: toggleSwitch
@@ -348,40 +342,17 @@ Item {
           }
 
           ControlGroup {
-            id: stepper
-            visible: controlRow.modelData.kind === "number"
-            panel: controlRow.panel
-
-            ControlButton {
-              panel: controlRow.panel
-              label: "−"
-              targetKey: "transparency:decrement"
-              onClicked: controlRow.panel.stepTransparency(-1)
-            }
-            ControlButton {
-              panel: controlRow.panel
-              label: controlRow.panel.rowValue(controlRow.modelData)
-            }
-            ControlButton {
-              panel: controlRow.panel
-              label: "+"
-              targetKey: "transparency:increment"
-              onClicked: controlRow.panel.stepTransparency(1)
-            }
-          }
-
-          ControlGroup {
             id: modes
-            visible: controlRow.modelData.kind === "choice"
+            visible: !controlRow.isToggle
             panel: controlRow.panel
 
             Repeater {
-              model: controlRow.modelData.kind === "choice" ? controlRow.modelData.choices : []
+              model: controlRow.isToggle ? [] : controlRow.modelData.choices
 
               ControlButton {
                 required property string modelData
                 panel: controlRow.panel
-                label: controlRow.panel.choiceLabel(modelData)
+                label: controlRow.panel.choiceLabel(controlRow.modelData, modelData)
                 targetKey: controlRow.rowKey + ":" + modelData
                 selected: controlRow.panel.connected && controlRow.panel.service[controlRow.modelData.property] === modelData
                 onClicked: controlRow.panel.setChoice(controlRow.modelData, modelData)
@@ -391,8 +362,9 @@ Item {
         }
       }
 
+      // Moving the slider from off or adaptive switches to the custom level.
       PanelSlider {
-        visible: controlRow.modelData.kind === "number"
+        visible: controlRow.modelData.kind === "transparency"
         x: Style.space(32)
         width: parent.width - Style.space(32)
         bar: controlRow.panel.panelBar
@@ -401,9 +373,9 @@ Item {
         step: 5
         value: controlRow.panel.transparencyLive
         enabled: controlRow.panel.controllable
-        opacity: enabled ? 1 : 0.5
+        opacity: !enabled ? 0.5 : (controlRow.panel.transparencyMode === "custom" ? 1 : 0.6)
         onMoved: function(value) {
-          controlRow.panel.select("transparency:decrement")
+          controlRow.panel.select("transparency:custom")
           controlRow.panel.setTransparency(Math.round(value))
         }
       }
@@ -412,8 +384,8 @@ Item {
 
   Connections {
     target: root.service
-    function onTransparencyChanged() {
-      if (!transparencyDebounce.running) root.transparencyLive = root.service.transparency
+    function onCustomTransparencyChanged() {
+      if (!transparencyDebounce.running) root.transparencyLive = root.service.customTransparency
     }
   }
 
@@ -583,6 +555,6 @@ Item {
     property int value: 0
     interval: 350
     repeat: false
-    onTriggered: if (root.service) root.service.setValue("transparency", value)
+    onTriggered: if (root.service) root.service.setCustomTransparency(value)
   }
 }
