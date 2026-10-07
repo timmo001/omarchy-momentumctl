@@ -25,6 +25,11 @@ Item {
   // Shared live value so the custom button, slider, and keyboard steps agree
   // while a transparency change is still waiting to be sent.
   property int transparencyLive: 0
+  // Band gains as shown, ahead of the headset while a change waits to be sent.
+  property var eqLive: []
+  readonly property var eqBandLabels: ["63 Hz", "250 Hz", "1 kHz", "4 kHz", "8 kHz"]
+  readonly property real eqGainStep: 0.5
+  readonly property real eqGainLimit: 12
   readonly property string cursorKey: filterController.selectedEntry() ? filterController.selectedEntry().key : ""
   readonly property string cursorRowKey: filterController.selectedEntry() ? filterController.selectedEntry().rowKey : ""
   readonly property var panelBar: QtObject {
@@ -70,6 +75,8 @@ Item {
       else if (entry.kind === "preset") {
         targets.push({ key: entry.key + ":previous", rowKey: entry.key, row: entry, kind: "cycle", delta: -1 })
         targets.push({ key: entry.key + ":next", rowKey: entry.key, row: entry, kind: "cycle", delta: 1 })
+        for (var band = 0; band < eqBandLabels.length; band++)
+          targets.push({ key: "eq-band:" + band, rowKey: entry.key, row: entry, kind: "band", band: band })
       }
       else if (entry.kind === "choice" || entry.kind === "transparency") {
         for (var choice = 0; choice < entry.choices.length; choice++)
@@ -104,14 +111,14 @@ Item {
     return value.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1) }).join("-")
   }
 
-  function eqGains() {
-    return service.eq.map(function(gain) { return (gain > 0 ? "+" : "") + gain }).join(" ") + " dB"
+  function eqGainLabel(gain) {
+    return (gain > 0 ? "+" : "") + gain + " dB"
   }
 
   function rowValue(entry) {
     if (!connected) return "Unavailable"
     if (entry.kind === "toggle") return onOff(service[entry.property])
-    if (entry.kind === "preset") return eqGains()
+    if (entry.kind === "preset") return "Stored on the headset"
     if (entry.kind === "transparency") {
       if (transparencyMode === "adaptive") return "Adaptive, " + service.transparency + "%"
       if (transparencyMode === "custom") return Math.round(transparencyLive) + "%"
@@ -151,6 +158,33 @@ Item {
     service.setValue(entry.key, entry.choices[next])
   }
 
+  function setEqBand(band, gain) {
+    if (!controllable || band >= eqLive.length) return
+    var snapped = Math.round(Math.max(-eqGainLimit, Math.min(eqGainLimit, gain)) / eqGainStep) * eqGainStep
+    if (snapped === eqLive[band]) return
+    var next = eqLive.slice()
+    next[band] = snapped
+    eqLive = next
+    eqDebounce.restart()
+  }
+
+  function stepEqBand(band, delta) {
+    if (band < eqLive.length) setEqBand(band, eqLive[band] + delta * eqGainStep)
+  }
+
+  // Sends only the bands that differ from the headset, once it's free.
+  function sendEq() {
+    if (!service || !service.eq) return
+    if (service.busy) {
+      eqDebounce.restart()
+      return
+    }
+    var commands = []
+    for (var band = 0; band < eqLive.length; band++)
+      if (eqLive[band] !== service.eq[band]) commands.push(["eq-band", band, eqLive[band]])
+    service.setValues(commands)
+  }
+
   function stepTransparency(delta) {
     if (!controllable || transparencyMode !== "custom") return
     var current = transparencyDebounce.running ? transparencyDebounce.value : transparencyLive
@@ -172,6 +206,7 @@ Item {
     else if (entry.kind === "step") stepTransparency(entry.delta)
     else if (entry.kind === "choice") setChoice(entry.row, entry.value)
     else if (entry.kind === "cycle") cyclePreset(entry.row, entry.delta)
+    else if (entry.kind === "band") setEqBand(entry.band, 0)
   }
 
   function adjust(direction) {
@@ -180,6 +215,7 @@ Item {
     if (entry.kind === "step") stepTransparency(direction)
     else if (entry.kind === "choice") stepChoice(entry.row, direction)
     else if (entry.kind === "cycle") cyclePreset(entry.row, direction)
+    else if (entry.kind === "band") stepEqBand(entry.band, direction)
     else return false
     return true
   }
@@ -216,6 +252,7 @@ Item {
     filterController.reset()
     if (service) {
       transparencyLive = service.customTransparency
+      eqLive = service.eq ? service.eq.slice() : []
       service.refresh()
     }
     Qt.callLater(function() {
@@ -472,6 +509,54 @@ Item {
           }
         }
       }
+
+      // One slider per band. The value button resets its band to 0 dB.
+      Repeater {
+        model: controlRow.isPreset ? controlRow.panel.eqLive.length : 0
+
+        Row {
+          id: bandRow
+          required property int index
+          x: Style.space(32)
+          width: parent.width - Style.space(32)
+          spacing: Style.space(10)
+
+          Text {
+            width: Style.space(48)
+            anchors.verticalCenter: parent.verticalCenter
+            text: controlRow.panel.eqBandLabels[bandRow.index]
+            color: controlRow.panel.mutedColor
+            font.family: controlRow.panel.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          PanelSlider {
+            anchors.verticalCenter: parent.verticalCenter
+            width: Math.max(0, parent.width - Style.space(48) - bandValue.width - parent.spacing * 2)
+            bar: controlRow.panel.panelBar
+            minimum: -controlRow.panel.eqGainLimit
+            maximum: controlRow.panel.eqGainLimit
+            step: controlRow.panel.eqGainStep
+            value: controlRow.panel.eqLive[bandRow.index]
+            enabled: controlRow.panel.controllable
+            opacity: enabled ? 1 : 0.5
+            onMoved: function(value) {
+              controlRow.panel.select("eq-band:" + bandRow.index)
+              controlRow.panel.setEqBand(bandRow.index, value)
+            }
+          }
+
+          ControlButton {
+            id: bandValue
+            width: Style.space(64)
+            anchors.verticalCenter: parent.verticalCenter
+            panel: controlRow.panel
+            label: controlRow.panel.eqGainLabel(controlRow.panel.eqLive[bandRow.index])
+            targetKey: "eq-band:" + bandRow.index
+            onClicked: controlRow.panel.setEqBand(bandRow.index, 0)
+          }
+        }
+      }
     }
   }
 
@@ -479,6 +564,9 @@ Item {
     target: root.service
     function onCustomTransparencyChanged() {
       if (!transparencyDebounce.running) root.transparencyLive = root.service.customTransparency
+    }
+    function onEqChanged() {
+      if (!eqDebounce.running) root.eqLive = root.service.eq ? root.service.eq.slice() : []
     }
   }
 
@@ -669,5 +757,12 @@ Item {
     interval: 350
     repeat: false
     onTriggered: if (root.service) root.service.setCustomTransparency(value)
+  }
+
+  Timer {
+    id: eqDebounce
+    interval: 350
+    repeat: false
+    onTriggered: root.sendEq()
   }
 }

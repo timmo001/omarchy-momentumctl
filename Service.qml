@@ -86,7 +86,7 @@ Item {
   }
 
   function runCommand(command) {
-    controlProcess.command = ["momentum", "set", command[0], String(command[1])]
+    controlProcess.command = ["momentum", "set"].concat(command.map(String))
     controlProcess.running = true
   }
 
