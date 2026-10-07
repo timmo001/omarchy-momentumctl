@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { GaiaError, Session } from "./Gaia.ts";
+import { GaiaError, type GaiaRejected, Session } from "./Gaia.ts";
 
 const Command = {
   battery: 0x0603,
@@ -14,6 +14,7 @@ const Command = {
 // One-byte switches, as [get, set] command pairs.
 export const switches = {
   "auto-answer": [0x080b, 0x080a],
+  "bass-boost": [0x1009, 0x1008],
   "comfort-call": [0x0815, 0x0814],
   "on-head-detection": [0x0401, 0x0400],
   "smart-pause": [0x080d, 0x080c],
@@ -41,7 +42,15 @@ export interface Status {
   readonly comfortCall: boolean;
   readonly onHeadDetection: boolean;
   readonly smartPause: boolean;
+  /** Null when the firmware rejects the command. */
+  readonly bassBoost: boolean | null;
 }
+
+// Newer settings can be missing on older firmware, so a rejection reports
+// the setting as unsupported rather than failing the whole status.
+const optional = <A, R>(
+  effect: Effect.Effect<A, GaiaError | GaiaRejected, R>,
+) => effect.pipe(Effect.catchTag("GaiaRejected", () => Effect.succeed(null)));
 
 const firstByte = Effect.fnUntraced(function* (command: number) {
   const session = yield* Session;
@@ -94,6 +103,11 @@ export const status = Effect.gen(function* () {
     comfortCall: (yield* firstByte(switches["comfort-call"][0])) !== 0,
     onHeadDetection: (yield* firstByte(switches["on-head-detection"][0])) !== 0,
     smartPause: (yield* firstByte(switches["smart-pause"][0])) !== 0,
+    bassBoost: yield* optional(
+      firstByte(switches["bass-boost"][0]).pipe(
+        Effect.map((value) => value !== 0),
+      ),
+    ),
   } satisfies Status;
 });
 

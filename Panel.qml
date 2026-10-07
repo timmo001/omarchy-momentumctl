@@ -38,6 +38,8 @@ Item {
     { key: "transparency", kind: "transparency", choices: transparencyModes, property: "transparencyMode", icon: 0xf07c5, primaryText: "Transparency", secondaryText: "off adaptive custom noise", section: "Noise control" }
   ].concat(transparencyMode !== "off" ? [
     { key: "anti-wind", kind: "choice", choices: antiWindModes, property: "antiWind", icon: 0xf059d, primaryText: "Anti-wind", secondaryText: "off auto max", section: "Noise control" }
+  ] : []).concat(service && service.bassBoost !== null ? [
+    toggleRow("bass-boost", "bassBoost", 0xf0f6f, "Bass boost", "Sound")
   ] : []).concat([
     toggleRow("smart-pause", "smartPause", 0xf03e6, "Smart Pause", "Behaviour"),
     toggleRow("on-head-detection", "onHeadDetection", 0xf133b, "On-head detection", "Behaviour"),
@@ -167,7 +169,7 @@ Item {
     var item = null
     if (cursorRowKey === "action:refresh") item = noiseHeading
     else {
-      var repeaters = [noiseRepeater, behaviourRepeater]
+      var repeaters = [noiseRepeater, soundRepeater, behaviourRepeater]
       for (var r = 0; r < repeaters.length && !item; r++)
         for (var i = 0; i < repeaters[r].count; i++)
           if (repeaters[r].itemAt(i) && repeaters[r].itemAt(i).rowKey === cursorRowKey) item = repeaters[r].itemAt(i)
@@ -545,6 +547,26 @@ Item {
                 Repeater {
                   id: noiseRepeater
                   model: root.sectionRows("Noise control")
+                  ControlRow { panel: root }
+                }
+              }
+
+              Column {
+                visible: root.sectionRows("Sound").length > 0
+                width: parent.width
+                spacing: Style.space(2)
+
+                SectionHeading {
+                  title: "Sound"
+                  foreground: root.foreground
+                  fontFamily: root.fontFamily
+                }
+
+                Item { width: 1; height: Style.space(4) }
+
+                Repeater {
+                  id: soundRepeater
+                  model: root.sectionRows("Sound")
                   ControlRow { panel: root }
                 }
               }

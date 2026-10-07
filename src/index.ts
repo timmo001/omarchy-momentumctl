@@ -5,7 +5,8 @@ import { type GaiaError, type GaiaRejected, Session } from "./Gaia.ts";
 import * as Headset from "./Headset.ts";
 import packageJson from "../package.json" with { type: "json" };
 
-const onOff = (value: boolean) => (value ? "on" : "off");
+const onOff = (value: boolean | null) =>
+  value === null ? "unsupported" : value ? "on" : "off";
 
 const fail = (error: GaiaError | GaiaRejected) =>
   Console.error(`momentum: ${error.message}`).pipe(
@@ -53,6 +54,7 @@ const statusCommand = Command.make(
         `Adaptive: ${onOff(status.adaptive)}`,
         `Transparency: ${status.transparency}%`,
         `Anti-wind: ${status.antiWind}`,
+        `Bass boost: ${onOff(status.bassBoost)}`,
         `Auto-answer: ${onOff(status.autoAnswer)}`,
         `Comfort call: ${onOff(status.comfortCall)}`,
         `On-head detection: ${onOff(status.onHeadDetection)}`,
@@ -98,6 +100,7 @@ const setCommand = Command.make("set").pipe(
       ({ mode }) => withHeadset(Headset.setAntiWind(mode)),
     ).pipe(Command.withDescription("Set wind noise reduction")),
     switchCommand("auto-answer", "Answer calls when the headset is put on"),
+    switchCommand("bass-boost", "Boost the low end"),
     switchCommand("comfort-call", "Hear your own voice during calls"),
     switchCommand(
       "on-head-detection",
