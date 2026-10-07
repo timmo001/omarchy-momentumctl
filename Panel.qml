@@ -242,13 +242,12 @@ Item {
     return String.fromCodePoint(0xf007a + Math.max(0, Math.min(8, Math.floor(level / 10) - 1)))
   }
 
-  function streamLabel() {
-    if (!connected || !service.codec) return ""
-    return service.sampleRate > 0 ? service.codec + ", " + (service.sampleRate / 1000) + " kHz" : service.codec
-  }
-
   function heroMeta() {
-    if (connected) return service.firmware ? "Firmware " + service.firmware : ""
+    if (connected) return [
+      service.firmware ? "Firmware " + service.firmware : "",
+      service.codec,
+      service.sampleRate > 0 ? (service.sampleRate / 1000) + " kHz" : ""
+    ].filter(function(part) { return part !== "" }).join(" • ")
     if (service && service.error) return service.error
     return "Waiting for headset"
   }
@@ -672,7 +671,6 @@ Item {
               PanelHeader {
                 title: filterController.filterText || "Headphones"
                 meta: root.heroMeta()
-                detail: root.streamLabel()
                 foreground: root.foreground
                 fontFamily: root.fontFamily
                 iconOpacity: root.connected ? 1 : 0.5
