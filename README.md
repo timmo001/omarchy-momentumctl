@@ -1,27 +1,51 @@
-# momentumctl for Omarchy
+# Momentum for Omarchy
 
-An Omarchy control panel for Sennheiser headphones supported by `momentumctl`. It shows the
-headset battery and controls transparency (off, adaptive or a custom level),
-anti-wind mode, Smart Pause, on-head detection, auto-answer, and
-Comfort Call.
+A CLI and Omarchy control panel for Sennheiser Momentum 4 headphones. The panel
+shows the headset battery and firmware version and controls:
+
+- Noise control: transparency (off, adaptive or a custom level) and anti-wind
+- Sound: bass boost and the equaliser presets
+- Behaviour: Smart Pause, on-head detection, auto-answer, Comfort Call, touch
+  controls and auto power off
 
 <img width="710" height="1115" alt="image" src="https://github.com/user-attachments/assets/2357d176-d6e7-4f50-98d5-3db27094d272" />
 
 ## Requirements
 
-- Omarchy Quattro
-- [`momentumctl`](https://github.com/gjabell/momentumctl) installed and available on `PATH`
-- A paired and connected Sennheiser headset supported by `momentumctl`
+- Omarchy Quattro, for the panel
+- `bluetoothctl`, from `bluez-utils`
+- A paired and connected Sennheiser Momentum 4
 
-`momentumctl` uses a reverse-engineered Sennheiser protocol. Features may vary
-with headset firmware. This plugin does not implement firmware updates, factory
-resets, or undocumented commands.
+The headset protocol is reverse-engineered and features may vary with firmware.
+Settings the firmware rejects are hidden in the panel. Neither the CLI nor the
+panel implements firmware updates, factory resets, or undocumented commands.
 
-## Install
+## The momentum CLI
 
-Install [`momentumctl`](https://github.com/gjabell/momentumctl).
+Install `momentum-bin` or `momentum-git` from the AUR, or a package from the
+[releases](https://github.com/timmo001/omarchy-momentumctl/releases).
 
-Review the plugin, then install it:
+```bash
+momentum status
+momentum set transparency 40
+momentum set eq-preset harman
+momentum set eq -3.5 -0.5 2.5 -0.5 -0.5
+momentum --help
+```
+
+The CLI finds the first connected Bluetooth device named MOMENTUM. Set
+`MOMENTUM_ADDRESS` to pick one by address instead.
+
+### Equaliser
+
+The headset has five bands, labelled 63 Hz, 250 Hz, 1 kHz, 4 kHz and 8 kHz in
+Smart Control. Gains are in dB, in tenths. The presets are Smart Control's
+eight, plus a Harman preset fitted from AutoEq's Momentum 4 corrections. The
+curve is stored on the headset, so it carries over to other devices.
+
+## Install the panel
+
+Install the `momentum` CLI first. Review the plugin, then install it:
 
 ```bash
 omarchy plugin add https://github.com/timmo001/omarchy-momentumctl.git
@@ -44,8 +68,8 @@ omarchy-shell shell toggle timmo.momentumctl
 Bind that command to a desktop hotkey for direct access.
 
 In the panel, Up and Down move between controls, Enter activates the selected
-one, and Left and Right change the transparency mode, the custom level or anti-wind. Type to filter the
-controls, and press Escape to clear the filter or close the panel.
+one, and Left and Right change the selected choice, level or preset. Type to
+filter the controls, and press Escape to clear the filter or close the panel.
 
 ## Update
 
@@ -59,15 +83,10 @@ omarchy plugin update timmo.momentumctl
 omarchy plugin remove timmo.momentumctl
 ```
 
-## Validate
+## Development
 
 ```bash
-mise run check
+mise run build          # compile dist/momentum
+mise run check          # CLI tests, lint, types and formatting
+mise run check:plugin   # plugin manifest and QML
 ```
-
-## Credits
-
-The CLI is maintained by [Galen Abell](https://github.com/gjabell/momentumctl)
-and distributed separately under the MIT licence. The headset protocol was
-reverse-engineered by community contributors and is not an official Sennheiser
-API.
