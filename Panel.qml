@@ -60,6 +60,10 @@ Item {
       else if (entry.kind === "choice" || entry.kind === "transparency") {
         for (var choice = 0; choice < entry.choices.length; choice++)
           targets.push({ key: entry.key + ":" + entry.choices[choice], rowKey: entry.key, row: entry, kind: "choice", value: entry.choices[choice] })
+        if (entry.kind === "transparency" && transparencyMode === "custom") {
+          targets.push({ key: entry.key + ":decrement", rowKey: entry.key, row: entry, kind: "step", delta: -1 })
+          targets.push({ key: entry.key + ":increment", rowKey: entry.key, row: entry, kind: "step", delta: 1 })
+        }
       }
     }
     return targets
@@ -81,8 +85,7 @@ Item {
     return value ? "On" : "Off"
   }
 
-  function choiceLabel(entry, value) {
-    if (entry.kind === "transparency" && value === "custom") return Math.round(transparencyLive) + "%"
+  function choiceLabel(value) {
     return value.charAt(0).toUpperCase() + value.slice(1)
   }
 
@@ -91,10 +94,9 @@ Item {
     if (entry.kind === "toggle") return onOff(service[entry.property])
     if (entry.kind === "transparency") {
       if (transparencyMode === "adaptive") return "Adaptive, " + service.transparency + "%"
-      return choiceLabel(entry, transparencyMode)
+      if (transparencyMode === "custom") return Math.round(transparencyLive) + "%"
     }
-    if (entry.kind === "choice") return choiceLabel(entry, service[entry.property])
-    return ""
+    return choiceLabel(service[entry.property])
   }
 
   function rowActive(entry) {
@@ -120,10 +122,10 @@ Item {
   }
 
   function stepTransparency(delta) {
-    if (!controllable) return
+    if (!controllable || transparencyMode !== "custom") return
     var current = transparencyDebounce.running ? transparencyDebounce.value : transparencyLive
     var next = Math.max(0, Math.min(100, current + delta * transparencyStep))
-    if (next === current && transparencyMode === "custom") return
+    if (next === current) return
     setTransparency(next)
   }
 
@@ -137,14 +139,15 @@ Item {
     if (!entry) return
     if (entry.kind === "refresh") { if (service) service.refresh() }
     else if (entry.kind === "toggle") toggle(entry.row)
+    else if (entry.kind === "step") stepTransparency(entry.delta)
     else if (entry.kind === "choice") setChoice(entry.row, entry.value)
   }
 
   function adjust(direction) {
     var entry = filterController.selectedEntry()
     if (!entry || !entry.row) return false
-    if (entry.row.kind === "transparency") stepTransparency(direction)
-    else if (entry.row.kind === "choice") stepChoice(entry.row, direction)
+    if (entry.kind === "step") stepTransparency(direction)
+    else if (entry.kind === "choice") stepChoice(entry.row, direction)
     else return false
     return true
   }
@@ -352,7 +355,7 @@ Item {
               ControlButton {
                 required property string modelData
                 panel: controlRow.panel
-                label: controlRow.panel.choiceLabel(controlRow.modelData, modelData)
+                label: controlRow.panel.choiceLabel(modelData)
                 targetKey: controlRow.rowKey + ":" + modelData
                 selected: controlRow.panel.connected && controlRow.panel.service[controlRow.modelData.property] === modelData
                 onClicked: controlRow.panel.setChoice(controlRow.modelData, modelData)
@@ -362,21 +365,54 @@ Item {
         }
       }
 
-      // Moving the slider from off or adaptive switches to the custom level.
-      PanelSlider {
+      // The level only applies in custom mode, so the slider and stepper stay
+      // disabled for off and adaptive.
+      Row {
+        id: levelRow
         visible: controlRow.modelData.kind === "transparency"
+        readonly property bool custom: controlRow.panel.transparencyMode === "custom"
         x: Style.space(32)
         width: parent.width - Style.space(32)
-        bar: controlRow.panel.panelBar
-        minimum: 0
-        maximum: 100
-        step: 5
-        value: controlRow.panel.transparencyLive
-        enabled: controlRow.panel.controllable
-        opacity: !enabled ? 0.5 : (controlRow.panel.transparencyMode === "custom" ? 1 : 0.6)
-        onMoved: function(value) {
-          controlRow.panel.select("transparency:custom")
-          controlRow.panel.setTransparency(Math.round(value))
+        spacing: Style.space(10)
+
+        PanelSlider {
+          anchors.verticalCenter: parent.verticalCenter
+          width: Math.max(0, parent.width - stepper.implicitWidth - parent.spacing)
+          bar: controlRow.panel.panelBar
+          minimum: 0
+          maximum: 100
+          step: 5
+          value: controlRow.panel.transparencyLive
+          enabled: controlRow.panel.controllable && levelRow.custom
+          opacity: enabled ? 1 : 0.5
+          onMoved: function(value) {
+            controlRow.panel.select("transparency:decrement")
+            controlRow.panel.setTransparency(Math.round(value))
+          }
+        }
+
+        ControlGroup {
+          id: stepper
+          anchors.verticalCenter: parent.verticalCenter
+          panel: controlRow.panel
+          opacity: levelRow.custom ? 1 : 0.5
+
+          ControlButton {
+            panel: controlRow.panel
+            label: "−"
+            targetKey: levelRow.custom ? "transparency:decrement" : ""
+            onClicked: controlRow.panel.stepTransparency(-1)
+          }
+          ControlButton {
+            panel: controlRow.panel
+            label: Math.round(controlRow.panel.transparencyLive) + "%"
+          }
+          ControlButton {
+            panel: controlRow.panel
+            label: "+"
+            targetKey: levelRow.custom ? "transparency:increment" : ""
+            onClicked: controlRow.panel.stepTransparency(1)
+          }
         }
       }
     }
