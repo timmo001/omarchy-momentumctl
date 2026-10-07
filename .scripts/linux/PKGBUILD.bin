@@ -1,0 +1,27 @@
+#!/bin/sh
+# Maintainer: Aidan Timson (Timmo) <aidan@timmo.dev>
+pkgname=momentum-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="CLI for Sennheiser Momentum 4 headphones (prebuilt binary)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/timmo001/omarchy-momentumctl"
+license=('Apache-2.0')
+depends=('glibc' 'bluez-utils')
+provides=('momentum')
+conflicts=('momentum' 'momentum-git')
+options=('!strip')
+source=('momentum.bash' 'momentum.fish' '_momentum' 'LICENSE')
+source_x86_64=("momentum-${pkgver}-linux-${CARCH}.tar.gz::$url/releases/download/${pkgver}/momentum-${pkgver}-linux-${CARCH}.tar.gz")
+source_aarch64=("momentum-${pkgver}-linux-${CARCH}.tar.gz::$url/releases/download/${pkgver}/momentum-${pkgver}-linux-${CARCH}.tar.gz")
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums_x86_64=('SKIP')
+sha256sums_aarch64=('SKIP')
+
+package() {
+  install -Dm755 momentum "$pkgdir/usr/bin/momentum"
+  install -Dm644 momentum.bash "$pkgdir/usr/share/bash-completion/completions/momentum"
+  install -Dm644 momentum.fish "$pkgdir/usr/share/fish/vendor_completions.d/momentum.fish"
+  install -Dm644 _momentum "$pkgdir/usr/share/zsh/site-functions/_momentum"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

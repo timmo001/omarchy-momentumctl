@@ -1,0 +1,26 @@
+---
+name: momentum
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+version_schema: none
+release: "1"
+section: utils
+priority: optional
+maintainer: Aidan Timson <aidan@timmo.dev>
+description: CLI for Sennheiser Momentum 4 headphones
+homepage: https://github.com/timmo001/omarchy-momentumctl
+license: Apache-2.0
+contents:
+  - src: dist/release/root/momentum
+    dst: /usr/bin/momentum
+    file_info:
+      mode: 0755
+  - src: .scripts/linux/completions/momentum.bash
+    dst: /usr/share/bash-completion/completions/momentum
+  - src: .scripts/linux/completions/momentum.fish
+    dst: /usr/share/fish/vendor_completions.d/momentum.fish
+  - src: .scripts/linux/completions/_momentum
+    dst: /usr/share/zsh/site-functions/_momentum
+  - src: LICENSE
+    dst: /usr/share/licenses/momentum/LICENSE
