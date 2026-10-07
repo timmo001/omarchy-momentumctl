@@ -4,7 +4,7 @@ A CLI and Omarchy control panel for Sennheiser Momentum 4 headphones. The panel
 shows the headset battery and firmware version and controls:
 
 - Noise control: transparency (off, adaptive or a custom level) and anti-wind
-- Sound: bass boost and the equaliser presets
+- Sound: bass boost, and the equaliser's presets and band sliders
 - Behaviour: Smart Pause, on-head detection, auto-answer, Comfort Call, touch
   controls and auto power off
 
@@ -68,8 +68,9 @@ omarchy-shell shell toggle timmo.momentumctl
 Bind that command to a desktop hotkey for direct access.
 
 In the panel, Up and Down move between controls, Enter activates the selected
-one, and Left and Right change the selected choice, level or preset. Type to
-filter the controls, and press Escape to clear the filter or close the panel.
+one, and Left and Right change the selected choice, level, preset or band.
+Enter on a band's value resets it to 0 dB. Type to filter the controls, and
+press Escape to clear the filter or close the panel.
 
 ## Update
 
