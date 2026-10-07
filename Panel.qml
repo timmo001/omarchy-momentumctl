@@ -17,6 +17,8 @@ Item {
   readonly property bool connected: service !== null && service.connected
   readonly property bool controllable: connected && !service.busy
   readonly property var antiWindModes: ["off", "auto", "max"]
+  readonly property var noiseModes: ["adaptive", "custom", "off"]
+  readonly property string noiseMode: connected ? service.noiseMode : ""
   readonly property int transparencyStep: 10
   // Shared live value so the stepper label, slider, and keyboard steps agree
   // while a transparency change is still waiting to be sent.
@@ -30,16 +32,20 @@ Item {
     readonly property string fontFamily: root.fontFamily
   }
 
+  // The noise mode owns the rest of the section: adaptive takes over
+  // transparency, and with noise control off there is nothing left to tune.
   readonly property var rows: [
-    toggleRow("anc", "anc", 0xf0581, "Noise cancellation", "Noise control"),
-    toggleRow("adaptive", "adaptive", 0xf1542, "Adaptive noise control", "Noise control"),
-    { key: "transparency", kind: "number", icon: 0xf07c5, primaryText: "Transparency", secondaryText: "", section: "Noise control" },
-    { key: "anti-wind", kind: "choice", icon: 0xf059d, primaryText: "Anti-wind", secondaryText: "off auto max", section: "Noise control" },
+    { key: "noise-mode", kind: "choice", choices: noiseModes, property: "noiseMode", icon: 0xf0581, primaryText: "Noise mode", secondaryText: "adaptive custom off", section: "Noise control" }
+  ].concat(noiseMode === "custom" ? [
+    { key: "transparency", kind: "number", icon: 0xf07c5, primaryText: "Transparency", secondaryText: "", section: "Noise control" }
+  ] : []).concat(noiseMode !== "off" ? [
+    { key: "anti-wind", kind: "choice", choices: antiWindModes, property: "antiWind", icon: 0xf059d, primaryText: "Anti-wind", secondaryText: "off auto max", section: "Noise control" }
+  ] : []).concat([
     toggleRow("smart-pause", "smartPause", 0xf03e6, "Smart Pause", "Behaviour"),
     toggleRow("on-head-detection", "onHeadDetection", 0xf133b, "On-head detection", "Behaviour"),
     toggleRow("auto-answer", "autoAnswer", 0xf03f6, "Auto-answer", "Behaviour"),
     toggleRow("comfort-call", "comfortCall", 0xf05cb, "Comfort Call", "Behaviour")
-  ]
+  ])
 
   function toggleRow(key, property, icon, label, section) {
     return { key: key, kind: "toggle", property: property, icon: icon, primaryText: label, secondaryText: "", section: section }
@@ -57,8 +63,8 @@ Item {
         targets.push({ key: entry.key + ":decrement", rowKey: entry.key, row: entry, kind: "step", delta: -1 })
         targets.push({ key: entry.key + ":increment", rowKey: entry.key, row: entry, kind: "step", delta: 1 })
       } else if (entry.kind === "choice") {
-        for (var mode = 0; mode < antiWindModes.length; mode++)
-          targets.push({ key: entry.key + ":" + antiWindModes[mode], rowKey: entry.key, row: entry, kind: "mode", value: antiWindModes[mode] })
+        for (var choice = 0; choice < entry.choices.length; choice++)
+          targets.push({ key: entry.key + ":" + entry.choices[choice], rowKey: entry.key, row: entry, kind: "choice", value: entry.choices[choice] })
       }
     }
     return targets
@@ -80,11 +86,15 @@ Item {
     return value ? "On" : "Off"
   }
 
+  function choiceLabel(value) {
+    return value.charAt(0).toUpperCase() + value.slice(1)
+  }
+
   function rowValue(entry) {
     if (!connected) return "Unavailable"
     if (entry.kind === "toggle") return onOff(service[entry.property])
     if (entry.kind === "number") return Math.round(transparencyLive) + "%"
-    if (entry.kind === "choice") return service.antiWind.charAt(0).toUpperCase() + service.antiWind.slice(1)
+    if (entry.kind === "choice") return choiceLabel(service[entry.property])
     return ""
   }
 
@@ -92,7 +102,7 @@ Item {
     if (!connected) return false
     if (entry.kind === "toggle") return service[entry.property]
     if (entry.kind === "number") return service.transparency > 0
-    if (entry.kind === "choice") return service.antiWind !== "off"
+    if (entry.kind === "choice") return service[entry.property] !== "off"
     return false
   }
 
@@ -100,14 +110,16 @@ Item {
     if (controllable) service.setValue(entry.key, service[entry.property] ? "off" : "on")
   }
 
-  function setAntiWind(mode) {
-    if (controllable && service.antiWind !== mode) service.setValue("anti-wind", mode)
+  function setChoice(entry, value) {
+    if (!controllable || service[entry.property] === value) return
+    if (entry.key === "noise-mode") service.setNoiseMode(value)
+    else service.setValue(entry.key, value)
   }
 
-  function stepAntiWind(delta) {
+  function stepChoice(entry, delta) {
     if (!controllable) return
-    var index = antiWindModes.indexOf(service.antiWind)
-    setAntiWind(antiWindModes[Math.max(0, Math.min(antiWindModes.length - 1, index + delta))])
+    var index = entry.choices.indexOf(service[entry.property])
+    setChoice(entry, entry.choices[Math.max(0, Math.min(entry.choices.length - 1, index + delta))])
   }
 
   function stepTransparency(delta) {
@@ -129,12 +141,14 @@ Item {
     if (entry.kind === "refresh") { if (service) service.refresh() }
     else if (entry.kind === "toggle") toggle(entry.row)
     else if (entry.kind === "step") stepTransparency(entry.delta)
-    else if (entry.kind === "mode") setAntiWind(entry.value)
+    else if (entry.kind === "choice") setChoice(entry.row, entry.value)
   }
 
   function adjust(direction) {
-    if (cursorRowKey === "transparency") stepTransparency(direction)
-    else if (cursorRowKey === "anti-wind") stepAntiWind(direction)
+    var entry = filterController.selectedEntry()
+    if (!entry || !entry.row) return false
+    if (entry.row.kind === "number") stepTransparency(direction)
+    else if (entry.row.kind === "choice") stepChoice(entry.row, direction)
     else return false
     return true
   }
@@ -362,15 +376,15 @@ Item {
             panel: controlRow.panel
 
             Repeater {
-              model: controlRow.modelData.kind === "choice" ? controlRow.panel.antiWindModes : []
+              model: controlRow.modelData.kind === "choice" ? controlRow.modelData.choices : []
 
               ControlButton {
                 required property string modelData
                 panel: controlRow.panel
-                label: modelData.charAt(0).toUpperCase() + modelData.slice(1)
-                targetKey: "anti-wind:" + modelData
-                selected: controlRow.panel.connected && controlRow.panel.service.antiWind === modelData
-                onClicked: controlRow.panel.setAntiWind(modelData)
+                label: controlRow.panel.choiceLabel(modelData)
+                targetKey: controlRow.rowKey + ":" + modelData
+                selected: controlRow.panel.connected && controlRow.panel.service[controlRow.modelData.property] === modelData
+                onClicked: controlRow.panel.setChoice(controlRow.modelData, modelData)
               }
             }
           }
@@ -431,7 +445,7 @@ Item {
       MouseArea { anchors.fill: parent; onClicked: {} }
 
       // FilterablePanel leaves Left and Right unhandled, so they reach this
-      // item and adjust the transparency or anti-wind row under the cursor.
+      // item and adjust the transparency or choice row under the cursor.
       Item {
         anchors.fill: parent
         Keys.onPressed: function(event) {

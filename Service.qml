@@ -19,6 +19,8 @@ Item {
   property bool smartPause: false
   property int transparency: 0
   property bool statusValid: false
+  readonly property string noiseMode: !anc ? "off" : (adaptive ? "adaptive" : "custom")
+  property var pendingCommands: []
 
   function parseStatus(text) {
     var values = {}
@@ -49,11 +51,32 @@ Item {
   }
 
   function setValue(setting, value) {
-    if (busy) return
+    setValues([[setting, value]])
+  }
+
+  // Runs one momentumctl invocation at a time and stops at the first failure,
+  // because each call opens its own RFCOMM session.
+  function setValues(commands) {
+    if (busy || commands.length === 0) return
     error = ""
-    controlProcess.command = ["momentumctl", "set", setting, String(value)]
+    pendingCommands = commands.slice(1)
     busy = true
+    runCommand(commands[0])
+  }
+
+  function runCommand(command) {
+    controlProcess.command = ["momentumctl", "set", command[0], String(command[1])]
     controlProcess.running = true
+  }
+
+  function setNoiseMode(mode) {
+    if (mode === noiseMode) return
+    if (mode === "off") setValues([["anc", "off"]])
+    else {
+      var commands = anc ? [] : [["anc", "on"]]
+      if (adaptive !== (mode === "adaptive")) commands.push(["adaptive", mode === "adaptive" ? "on" : "off"])
+      setValues(commands)
+    }
   }
 
   Process {
@@ -90,6 +113,13 @@ Item {
     id: controlProcess
     stdout: StdioCollector { waitForEnd: true }
     onExited: function(exitCode) {
+      if (exitCode === 0 && root.pendingCommands.length > 0) {
+        var next = root.pendingCommands[0]
+        root.pendingCommands = root.pendingCommands.slice(1)
+        root.runCommand(next)
+        return
+      }
+      root.pendingCommands = []
       root.busy = false
       if (exitCode !== 0) root.error = "Could not update the headset"
       refreshTimer.restart()

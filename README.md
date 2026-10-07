@@ -1,7 +1,7 @@
 # momentumctl for Omarchy
 
 An Omarchy control panel for Sennheiser headphones supported by `momentumctl`. It shows the
-headset battery and controls ANC, adaptive noise control,
+headset battery and controls the noise mode (adaptive, custom or off),
 transparency, anti-wind mode, Smart Pause, on-head detection, auto-answer, and
 Comfort Call.
 
@@ -44,7 +44,7 @@ omarchy-shell shell toggle timmo.momentumctl
 Bind that command to a desktop hotkey for direct access.
 
 In the panel, Up and Down move between controls, Enter activates the selected
-one, and Left and Right adjust transparency or anti-wind. Type to filter the
+one, and Left and Right adjust transparency, the noise mode or anti-wind. Type to filter the
 controls, and press Escape to clear the filter or close the panel.
 
 ## Update
