@@ -18,6 +18,7 @@ Item {
   readonly property bool controllable: connected && !service.busy
   readonly property var antiWindModes: ["off", "auto", "max"]
   readonly property var autoPowerOffChoices: ["never", "15", "30", "60"]
+  readonly property var eqPresets: ["neutral", "rock", "pop", "dance", "hip-hop", "classical", "movie", "jazz"]
   readonly property var transparencyModes: ["off", "adaptive", "custom"]
   readonly property string transparencyMode: connected ? service.transparencyMode : ""
   readonly property int transparencyStep: 10
@@ -41,6 +42,8 @@ Item {
     { key: "anti-wind", kind: "choice", choices: antiWindModes, property: "antiWind", icon: 0xf059d, primaryText: "Anti-wind", secondaryText: "off auto max", section: "Noise control" }
   ] : []).concat(service && service.bassBoost !== null ? [
     toggleRow("bass-boost", "bassBoost", 0xf0f6f, "Bass boost", "Sound")
+  ] : []).concat(service && service.eqPreset !== null ? [
+    { key: "eq-preset", kind: "preset", choices: eqPresets, property: "eqPreset", icon: 0xf0ea2, primaryText: "Equaliser", secondaryText: "eq preset " + eqPresets.join(" "), section: "Sound" }
   ] : []).concat([
     toggleRow("smart-pause", "smartPause", 0xf03e6, "Smart Pause", "Behaviour"),
     toggleRow("on-head-detection", "onHeadDetection", 0xf133b, "On-head detection", "Behaviour"),
@@ -64,6 +67,10 @@ Item {
       var entry = entries[i]
       if (entry.kind === "toggle")
         targets.push({ key: entry.key, rowKey: entry.key, row: entry, kind: "toggle" })
+      else if (entry.kind === "preset") {
+        targets.push({ key: entry.key + ":previous", rowKey: entry.key, row: entry, kind: "cycle", delta: -1 })
+        targets.push({ key: entry.key + ":next", rowKey: entry.key, row: entry, kind: "cycle", delta: 1 })
+      }
       else if (entry.kind === "choice" || entry.kind === "transparency") {
         for (var choice = 0; choice < entry.choices.length; choice++)
           targets.push({ key: entry.key + ":" + entry.choices[choice], rowKey: entry.key, row: entry, kind: "choice", value: entry.choices[choice] })
@@ -94,12 +101,17 @@ Item {
 
   function choiceLabel(value) {
     if (/^\d+$/.test(value)) return value + " min"
-    return value.charAt(0).toUpperCase() + value.slice(1)
+    return value.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1) }).join("-")
+  }
+
+  function eqGains() {
+    return service.eq.map(function(gain) { return (gain > 0 ? "+" : "") + gain }).join(" ") + " dB"
   }
 
   function rowValue(entry) {
     if (!connected) return "Unavailable"
     if (entry.kind === "toggle") return onOff(service[entry.property])
+    if (entry.kind === "preset") return eqGains()
     if (entry.kind === "transparency") {
       if (transparencyMode === "adaptive") return "Adaptive, " + service.transparency + "%"
       if (transparencyMode === "custom") return Math.round(transparencyLive) + "%"
@@ -110,6 +122,7 @@ Item {
   function rowActive(entry) {
     if (!connected) return false
     if (entry.kind === "toggle") return service[entry.property]
+    if (entry.kind === "preset") return service.eqPreset !== "neutral"
     return service[entry.property] !== "off" && service[entry.property] !== "never"
   }
 
@@ -127,6 +140,15 @@ Item {
     if (!controllable) return
     var index = entry.choices.indexOf(service[entry.property])
     setChoice(entry, entry.choices[Math.max(0, Math.min(entry.choices.length - 1, index + delta))])
+  }
+
+  // Presets wrap around. A custom curve starts from the first or last one.
+  function cyclePreset(entry, delta) {
+    if (!controllable) return
+    var index = entry.choices.indexOf(service[entry.property])
+    var next = index < 0 ? (delta > 0 ? 0 : entry.choices.length - 1)
+      : (index + delta + entry.choices.length) % entry.choices.length
+    service.setValue(entry.key, entry.choices[next])
   }
 
   function stepTransparency(delta) {
@@ -149,6 +171,7 @@ Item {
     else if (entry.kind === "toggle") toggle(entry.row)
     else if (entry.kind === "step") stepTransparency(entry.delta)
     else if (entry.kind === "choice") setChoice(entry.row, entry.value)
+    else if (entry.kind === "cycle") cyclePreset(entry.row, entry.delta)
   }
 
   function adjust(direction) {
@@ -156,6 +179,7 @@ Item {
     if (!entry || !entry.row) return false
     if (entry.kind === "step") stepTransparency(direction)
     else if (entry.kind === "choice") stepChoice(entry.row, direction)
+    else if (entry.kind === "cycle") cyclePreset(entry.row, direction)
     else return false
     return true
   }
@@ -269,6 +293,7 @@ Item {
     required property var modelData
     readonly property string rowKey: modelData.key
     readonly property bool isToggle: modelData.kind === "toggle"
+    readonly property bool isPreset: modelData.kind === "preset"
 
     x: Style.space(8)
     width: Math.max(0, (parent ? parent.width : 0) - Style.space(16))
@@ -338,9 +363,10 @@ Item {
 
         Item {
           id: trailing
+          readonly property Item control: controlRow.isToggle ? toggleSwitch : (controlRow.isPreset ? presetStepper : modes)
           anchors.verticalCenter: parent.verticalCenter
-          width: controlRow.isToggle ? toggleSwitch.implicitWidth : modes.implicitWidth
-          height: controlRow.isToggle ? toggleSwitch.implicitHeight : modes.implicitHeight
+          width: control.implicitWidth
+          height: control.implicitHeight
 
           ToggleSwitch {
             id: toggleSwitch
@@ -354,11 +380,11 @@ Item {
 
           ControlGroup {
             id: modes
-            visible: !controlRow.isToggle
+            visible: !controlRow.isToggle && !controlRow.isPreset
             panel: controlRow.panel
 
             Repeater {
-              model: controlRow.isToggle ? [] : controlRow.modelData.choices
+              model: controlRow.isToggle || controlRow.isPreset ? [] : controlRow.modelData.choices
 
               ControlButton {
                 required property string modelData
@@ -368,6 +394,29 @@ Item {
                 selected: controlRow.panel.connected && controlRow.panel.service[controlRow.modelData.property] === modelData
                 onClicked: controlRow.panel.setChoice(controlRow.modelData, modelData)
               }
+            }
+          }
+
+          ControlGroup {
+            id: presetStepper
+            visible: controlRow.isPreset
+            panel: controlRow.panel
+
+            ControlButton {
+              panel: controlRow.panel
+              label: "‹"
+              targetKey: controlRow.isPreset ? controlRow.rowKey + ":previous" : ""
+              onClicked: controlRow.panel.cyclePreset(controlRow.modelData, -1)
+            }
+            ControlButton {
+              panel: controlRow.panel
+              label: controlRow.isPreset && controlRow.panel.connected ? controlRow.panel.choiceLabel(controlRow.panel.service.eqPreset) : ""
+            }
+            ControlButton {
+              panel: controlRow.panel
+              label: "›"
+              targetKey: controlRow.isPreset ? controlRow.rowKey + ":next" : ""
+              onClicked: controlRow.panel.cyclePreset(controlRow.modelData, 1)
             }
           }
         }

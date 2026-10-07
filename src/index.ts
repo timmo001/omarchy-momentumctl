@@ -39,6 +39,25 @@ const toggle = {
   ),
 };
 
+const gainSchema = Schema.Finite.pipe(
+  Schema.check(
+    Schema.isBetween({
+      minimum: Headset.EQ_GAIN_MIN,
+      maximum: Headset.EQ_GAIN_MAX,
+    }),
+  ),
+);
+
+const eqLabel = (status: Headset.Status) => {
+  if (status.eq === null) return "unsupported";
+
+  const gains = status.eq
+    .map((gain, band) => `${Headset.eqBandLabels[band]} ${gain} dB`)
+    .join(", ");
+
+  return `${status.eqPreset ?? "custom"} (${gains})`;
+};
+
 const statusCommand = Command.make(
   "status",
   {
@@ -61,6 +80,7 @@ const statusCommand = Command.make(
         `Transparency: ${status.transparency}%`,
         `Anti-wind: ${status.antiWind}`,
         `Bass boost: ${onOff(status.bassBoost)}`,
+        `EQ: ${eqLabel(status)}`,
         `Auto-answer: ${onOff(status.autoAnswer)}`,
         `Comfort call: ${onOff(status.comfortCall)}`,
         `On-head detection: ${onOff(status.onHeadDetection)}`,
@@ -118,6 +138,54 @@ const setCommand = Command.make("set").pipe(
     ),
     switchCommand("bass-boost", "Boost the low end"),
     switchCommand("comfort-call", "Hear your own voice during calls"),
+    Command.make(
+      "eq",
+      {
+        gains: Argument.Finite("gains").pipe(
+          Argument.withDescription(
+            `Gains in dB for ${Headset.eqBandLabels.join(", ")}`,
+          ),
+          Argument.withSchema(gainSchema),
+          Argument.variadic({
+            min: Headset.EQ_BANDS,
+            max: Headset.EQ_BANDS,
+          }),
+        ),
+      },
+      ({ gains }) => withHeadset(Headset.setEq(gains)),
+    ).pipe(Command.withDescription("Set the gain of every EQ band")),
+    Command.make(
+      "eq-band",
+      {
+        band: Argument.Int("band").pipe(
+          Argument.withDescription(
+            Headset.eqBandLabels
+              .map((label, band) => `${band}: ${label}`)
+              .join(", "),
+          ),
+          Argument.withSchema(
+            Schema.Int.pipe(
+              Schema.check(
+                Schema.isBetween({
+                  minimum: 0,
+                  maximum: Headset.EQ_BANDS - 1,
+                }),
+              ),
+            ),
+          ),
+        ),
+        gain: Argument.Finite("gain").pipe(
+          Argument.withDescription("Gain in dB"),
+          Argument.withSchema(gainSchema),
+        ),
+      },
+      ({ band, gain }) => withHeadset(Headset.setEqBand(band, gain)),
+    ).pipe(Command.withDescription("Set the gain of one EQ band")),
+    Command.make(
+      "eq-preset",
+      { preset: Argument.Literals("preset", Headset.eqPresetNames) },
+      ({ preset }) => withHeadset(Headset.setEqPreset(preset)),
+    ).pipe(Command.withDescription("Apply one of Smart Control's EQ presets")),
     switchCommand(
       "on-head-detection",
       "Detect when the headset is put on or taken off",

@@ -17,7 +17,48 @@ const Command = {
   setAutoPowerOff: 0x0600,
   // Three big-endian u16s: major, minor, patch.
   firmware: 0x1201,
+  // The EQ has five fixed bands. Gains are signed tenths of a dB, set one
+  // band at a time; the getter needs a (any) payload byte.
+  setEqBand: 0x1001,
+  getEq: 0x1003,
 } as const;
+
+export const EQ_BANDS = 5;
+
+/** Smart Control's labels, which are nominal: the bands centre on 90, 325,
+ * 1500, 6500 and 6500 Hz. */
+export const eqBandLabels = ["63 Hz", "250 Hz", "1 kHz", "4 kHz", "8 kHz"];
+
+export const eqPresetNames = [
+  "neutral",
+  "rock",
+  "pop",
+  "dance",
+  "hip-hop",
+  "classical",
+  "movie",
+  "jazz",
+] as const;
+
+export type EqPreset = (typeof eqPresetNames)[number];
+
+// The app keeps presets itself and writes their gains, matching the active
+// one by curve. Values from DanSmith888/omarchy-momentum4's presets.json.
+export const eqPresets: Record<EqPreset, readonly number[]> = {
+  neutral: [0, 0, 0, 0, 0],
+  rock: [0, 2, 2.5, 1.5, -2],
+  pop: [0, -2.5, 0, 2.5, 0],
+  dance: [3.5, 2, -1.5, 1.5, 3],
+  "hip-hop": [3, 1.5, -1.5, 0, -1.5],
+  classical: [-2, -1.5, 0, 3.5, 4],
+  movie: [0, 0, 2, 2, -2],
+  jazz: [-3.2, 0, 2.2, 2.2, 0],
+};
+
+/** The byte range of a gain, in dB. */
+export const EQ_GAIN_MIN = -12.8;
+
+export const EQ_GAIN_MAX = 12.7;
 
 export const autoPowerOffChoices = ["never", "15", "30", "60"] as const;
 
@@ -60,6 +101,10 @@ export interface Status {
   /** Minutes, with 0 meaning never. */
   readonly autoPowerOff: number | null;
   readonly firmware: string | null;
+  /** Gains in dB, one per band. */
+  readonly eq: readonly number[] | null;
+  /** The preset whose gains match the curve exactly. */
+  readonly eqPreset: EqPreset | null;
 }
 
 // Newer settings can be missing on older firmware, so a rejection reports
@@ -138,8 +183,28 @@ const firmware = Effect.gen(function* () {
   return [0, 2, 4].map((offset) => view.getUint16(offset)).join(".");
 });
 
+const eq = Effect.gen(function* () {
+  const session = yield* Session;
+  const payload = yield* session.request(Command.getEq, Uint8Array.of(0));
+
+  if (payload.length < EQ_BANDS)
+    return yield* new GaiaError({
+      message: "The headset sent a short EQ reply",
+    });
+
+  return [...new Int8Array(payload.buffer, payload.byteOffset, EQ_BANDS)].map(
+    (gain) => gain / 10,
+  );
+});
+
+const matchingPreset = (gains: readonly number[]) =>
+  eqPresetNames.find((name) =>
+    eqPresets[name].every((gain, band) => gain === gains[band]),
+  ) ?? null;
+
 export const status = Effect.gen(function* () {
   const table = yield* noiseTable;
+  const gains = yield* optional(eq);
 
   return {
     battery: yield* firstByte(Command.battery),
@@ -163,6 +228,8 @@ export const status = Effect.gen(function* () {
     ),
     autoPowerOff: yield* optional(autoPowerOff),
     firmware: yield* optional(firmware),
+    eq: gains,
+    eqPreset: gains === null ? null : matchingPreset(gains),
   } satisfies Status;
 });
 
@@ -192,3 +259,23 @@ export const setAutoPowerOff = Effect.fnUntraced(function* (
   new DataView(payload.buffer).setUint16(1, seconds);
   yield* session.request(Command.setAutoPowerOff, payload);
 });
+
+export const setEqBand = Effect.fnUntraced(function* (
+  band: number,
+  gain: number,
+) {
+  const session = yield* Session;
+  const payload = new Uint8Array(2);
+  const view = new DataView(payload.buffer);
+  view.setUint8(0, band);
+  view.setInt8(1, Math.round(gain * 10));
+  yield* session.request(Command.setEqBand, payload);
+});
+
+// There is no whole-curve setter, so this writes each band in turn, as
+// Smart Control does when it applies a preset.
+export const setEq = Effect.fnUntraced(function* (gains: readonly number[]) {
+  for (const [band, gain] of gains.entries()) yield* setEqBand(band, gain);
+});
+
+export const setEqPreset = (name: EqPreset) => setEq(eqPresets[name]);

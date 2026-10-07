@@ -23,6 +23,9 @@ Item {
   // "never" or minutes as a string, matching the panel's choices.
   property var autoPowerOff: null
   property string firmware: ""
+  // Gains in dB per band, and the matching preset or "custom".
+  property var eq: null
+  property var eqPreset: null
   property int transparency: 0
   // The level the headset reports while adaptive is on is its own, so the
   // last custom level is kept separately for the slider.
@@ -52,6 +55,8 @@ Item {
     touchControls = typeof values.touchControls === "boolean" ? values.touchControls : null
     autoPowerOff = !isFinite(values.autoPowerOff) || values.autoPowerOff === null ? null : (values.autoPowerOff === 0 ? "never" : String(values.autoPowerOff))
     firmware = values.firmware ? String(values.firmware) : ""
+    eq = Array.isArray(values.eq) ? values.eq : null
+    eqPreset = eq === null ? null : String(values.eqPreset || "custom")
     if (!adaptive) customTransparency = transparency
     return true
   }
