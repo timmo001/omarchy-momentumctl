@@ -38,6 +38,7 @@ export const eqPresetNames = [
   "classical",
   "movie",
   "jazz",
+  "harman",
 ] as const;
 
 export type EqPreset = (typeof eqPresetNames)[number];
@@ -53,6 +54,11 @@ export const eqPresets: Record<EqPreset, readonly number[]> = {
   classical: [-2, -1.5, 0, 3.5, 4],
   movie: [0, 0, 2, 2, -2],
   jazz: [-3.2, 0, 2.2, 2.2, 0],
+  // Not one of the app's. AutoEq's Harman corrections for the Momentum 4 from
+  // RTINGS (B&K 5128) and oratory1990, averaged over a third of an octave at
+  // the real band centres. The two top bands share 6.5 kHz, so they split
+  // that band's cut.
+  harman: [-3.5, -0.5, 2.5, -0.5, -0.5],
 };
 
 /** The byte range of a gain, in dB. */

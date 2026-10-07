@@ -18,7 +18,7 @@ Item {
   readonly property bool controllable: connected && !service.busy
   readonly property var antiWindModes: ["off", "auto", "max"]
   readonly property var autoPowerOffChoices: ["never", "15", "30", "60"]
-  readonly property var eqPresets: ["neutral", "rock", "pop", "dance", "hip-hop", "classical", "movie", "jazz"]
+  readonly property var eqPresets: ["neutral", "rock", "pop", "dance", "hip-hop", "classical", "movie", "jazz", "harman"]
   readonly property var transparencyModes: ["off", "adaptive", "custom"]
   readonly property string transparencyMode: connected ? service.transparencyMode : ""
   readonly property int transparencyStep: 10

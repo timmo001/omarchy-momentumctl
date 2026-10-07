@@ -185,7 +185,7 @@ const setCommand = Command.make("set").pipe(
       "eq-preset",
       { preset: Argument.Literals("preset", Headset.eqPresetNames) },
       ({ preset }) => withHeadset(Headset.setEqPreset(preset)),
-    ).pipe(Command.withDescription("Apply one of Smart Control's EQ presets")),
+    ).pipe(Command.withDescription("Apply an EQ preset")),
     switchCommand(
       "on-head-detection",
       "Detect when the headset is put on or taken off",
