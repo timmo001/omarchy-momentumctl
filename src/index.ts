@@ -67,6 +67,7 @@ const statusCommand = Command.make(
         `Smart pause: ${onOff(status.smartPause)}`,
         `Touch controls: ${onOff(status.touchControls)}`,
         `Auto power off: ${autoPowerOffLabel(status.autoPowerOff)}`,
+        `Firmware: ${status.firmware ?? "unknown"}`,
       ].join("\n"),
     );
   }),

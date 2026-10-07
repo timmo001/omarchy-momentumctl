@@ -15,6 +15,8 @@ const Command = {
   // Both take a leading index byte (0); the value is seconds, 0 for never.
   getAutoPowerOff: 0x0601,
   setAutoPowerOff: 0x0600,
+  // Three big-endian u16s: major, minor, patch.
+  firmware: 0x1201,
 } as const;
 
 export const autoPowerOffChoices = ["never", "15", "30", "60"] as const;
@@ -57,6 +59,7 @@ export interface Status {
   readonly touchControls: boolean | null;
   /** Minutes, with 0 meaning never. */
   readonly autoPowerOff: number | null;
+  readonly firmware: string | null;
 }
 
 // Newer settings can be missing on older firmware, so a rejection reports
@@ -121,6 +124,20 @@ const autoPowerOff = Effect.gen(function* () {
   return seconds / 60;
 });
 
+const firmware = Effect.gen(function* () {
+  const session = yield* Session;
+  const payload = yield* session.request(Command.firmware);
+
+  if (payload.length < 6)
+    return yield* new GaiaError({
+      message: "The headset sent a short firmware reply",
+    });
+
+  const view = new DataView(payload.buffer, payload.byteOffset);
+
+  return [0, 2, 4].map((offset) => view.getUint16(offset)).join(".");
+});
+
 export const status = Effect.gen(function* () {
   const table = yield* noiseTable;
 
@@ -145,6 +162,7 @@ export const status = Effect.gen(function* () {
       ),
     ),
     autoPowerOff: yield* optional(autoPowerOff),
+    firmware: yield* optional(firmware),
   } satisfies Status;
 });
 

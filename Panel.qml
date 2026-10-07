@@ -166,7 +166,7 @@ Item {
   }
 
   function heroMeta() {
-    if (connected) return ""
+    if (connected) return service.firmware ? "Firmware " + service.firmware : ""
     if (service && service.error) return service.error
     return "Waiting for headset"
   }
