@@ -59,6 +59,7 @@ const statusCommand = Command.make(
         `Comfort call: ${onOff(status.comfortCall)}`,
         `On-head detection: ${onOff(status.onHeadDetection)}`,
         `Smart pause: ${onOff(status.smartPause)}`,
+        `Touch controls: ${onOff(status.touchControls)}`,
       ].join("\n"),
     );
   }),
@@ -107,6 +108,11 @@ const setCommand = Command.make("set").pipe(
       "Detect when the headset is put on or taken off",
     ),
     switchCommand("smart-pause", "Pause media when the headset is taken off"),
+    Command.make("touch-controls", toggle, ({ state }) =>
+      withHeadset(Headset.setTouchControls(state)),
+    ).pipe(
+      Command.withDescription("Turn the touch controls on the cup on or off"),
+    ),
   ]),
 );
 

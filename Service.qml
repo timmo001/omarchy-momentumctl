@@ -19,6 +19,7 @@ Item {
   property bool smartPause: false
   // Null when the firmware doesn't support it.
   property var bassBoost: null
+  property var touchControls: null
   property int transparency: 0
   // The level the headset reports while adaptive is on is its own, so the
   // last custom level is kept separately for the slider.
@@ -45,6 +46,7 @@ Item {
     onHeadDetection = values.onHeadDetection === true
     smartPause = values.smartPause === true
     bassBoost = typeof values.bassBoost === "boolean" ? values.bassBoost : null
+    touchControls = typeof values.touchControls === "boolean" ? values.touchControls : null
     if (!adaptive) customTransparency = transparency
     return true
   }

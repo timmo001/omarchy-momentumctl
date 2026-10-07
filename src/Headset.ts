@@ -9,6 +9,9 @@ const Command = {
   setTransparency: 0x1a02,
   getNoiseTable: 0x1a01,
   setNoiseTable: 0x1a00,
+  // A "disabled" flag, so 0 means the touch controls are on.
+  getTouchControls: 0x1607,
+  setTouchControls: 0x1606,
 } as const;
 
 // One-byte switches, as [get, set] command pairs.
@@ -44,6 +47,7 @@ export interface Status {
   readonly smartPause: boolean;
   /** Null when the firmware rejects the command. */
   readonly bassBoost: boolean | null;
+  readonly touchControls: boolean | null;
 }
 
 // Newer settings can be missing on older firmware, so a rejection reports
@@ -108,6 +112,11 @@ export const status = Effect.gen(function* () {
         Effect.map((value) => value !== 0),
       ),
     ),
+    touchControls: yield* optional(
+      firstByte(Command.getTouchControls).pipe(
+        Effect.map((value) => value === 0),
+      ),
+    ),
   } satisfies Status;
 });
 
@@ -124,3 +133,6 @@ export const setTransparency = (level: number) =>
 
 export const setSwitch = (name: Switch, on: boolean) =>
   writeByte(switches[name][1], on ? 1 : 0);
+
+export const setTouchControls = (on: boolean) =>
+  writeByte(Command.setTouchControls, on ? 0 : 1);

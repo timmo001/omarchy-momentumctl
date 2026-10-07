@@ -45,7 +45,9 @@ Item {
     toggleRow("on-head-detection", "onHeadDetection", 0xf133b, "On-head detection", "Behaviour"),
     toggleRow("auto-answer", "autoAnswer", 0xf03f6, "Auto-answer", "Behaviour"),
     toggleRow("comfort-call", "comfortCall", 0xf05cb, "Comfort Call", "Behaviour")
-  ])
+  ]).concat(service && service.touchControls !== null ? [
+    toggleRow("touch-controls", "touchControls", 0xf0741, "Touch controls", "Behaviour")
+  ] : [])
 
   function toggleRow(key, property, icon, label, section) {
     return { key: key, kind: "toggle", property: property, icon: icon, primaryText: label, secondaryText: "", section: section }
