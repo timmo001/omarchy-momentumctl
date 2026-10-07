@@ -247,8 +247,25 @@ export class Session extends Context.Service<Session, SessionService>()(
         : CHANNELS;
 
       for (const channel of channels) {
+        // A refused connection or a reply that isn't GAIA means the wrong
+        // channel. Anything else, such as a timeout, means the headset itself
+        // is out of reach, so trying the other channels would only add waits.
         const request = yield* openSession(address, channel).pipe(
-          Effect.option,
+          Effect.asSome,
+          Effect.catchTags({
+            GaiaError: () => Effect.succeedNone,
+            GaiaRejected: () => Effect.succeedNone,
+            RfcommError: (error) =>
+              error.refused
+                ? Effect.succeedNone
+                : Effect.fail(
+                    new GaiaError({
+                      message: error.timedOut
+                        ? "The headset is not responding"
+                        : `The headset is unreachable (${error.message})`,
+                    }),
+                  ),
+          }),
         );
 
         if (Option.isNone(request)) continue;

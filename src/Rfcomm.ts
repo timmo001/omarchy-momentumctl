@@ -19,6 +19,13 @@ const EAGAIN = 11;
 
 const EINTR = 4;
 
+const ECONNREFUSED = 111;
+
+const ETIMEDOUT = 110;
+
+// A blocking connect that runs past SO_SNDTIMEO.
+const EINPROGRESS = 115;
+
 const libc = dlopen("libc.so.6", {
   socket: {
     args: [FFIType.i32, FFIType.i32, FFIType.i32],
@@ -61,7 +68,12 @@ export class RfcommError extends Schema.TaggedError<RfcommError>()(
   }
 
   get timedOut() {
-    return this.errno === EAGAIN;
+    return [EAGAIN, EINPROGRESS, ETIMEDOUT].includes(this.errno);
+  }
+
+  /** The device answered but nothing is listening on that channel. */
+  get refused() {
+    return this.errno === ECONNREFUSED;
   }
 }
 
