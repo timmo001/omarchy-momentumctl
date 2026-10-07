@@ -1,8 +1,57 @@
-[tasks.check]
-depends = ["validate", "lint"]
+min_version = "2025.1.0"
+
+[tools]
+bun = "1.4.2"
+
+[tasks.install]
+description = "Install CLI dependencies"
+run = "bun install"
+
+[tasks.build]
+description = "Compile the momentum binary"
+depends = ["install"]
+run = "bun run build"
+
+[tasks.test]
+description = "Run CLI tests"
+depends = ["install"]
+run = "bun run test"
+
+[tasks.typecheck]
+description = "Type-check the CLI"
+depends = ["install"]
+run = "bun run typecheck"
+
+[tasks."lint:cli"]
+description = "Lint the CLI with the shared Oxlint rules"
+depends = ["install"]
+run = "bun run lint"
+
+[tasks.format]
+description = "Format the CLI source"
+depends = ["install"]
+run = "bun run format"
+
+[tasks."format:check"]
+description = "Check CLI formatting"
+depends = ["install"]
+run = "bun run format:check"
 
 [tasks.validate]
-run = "omarchy plugin validate ."
+description = "Validate the Omarchy plugin manifest"
+# node_modules holds symlinks the validator refuses, so check the files git
+# would ship, as an installed checkout has them.
+run = '''
+dir=$(mktemp -d)
+trap 'rm -rf "$dir"' EXIT
+git ls-files -z --cached --others --exclude-standard | xargs -0 cp --parents -t "$dir"
+omarchy plugin validate "$dir"
+'''
 
 [tasks.lint]
+description = "Lint the plugin QML"
 run = "qmllint -I /usr/lib/qt6/qml Panel.qml PanelFlickable.qml PanelHeader.qml SectionHeading.qml Service.qml"
+
+[tasks.check]
+description = "Check the plugin and the CLI"
+depends = ["validate", "lint", "typecheck", "lint:cli", "format:check", "test"]
