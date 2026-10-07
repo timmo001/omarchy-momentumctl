@@ -8,7 +8,7 @@ shows the headset battery and firmware version and controls:
 - Behaviour: Smart Pause, on-head detection, auto-answer, Comfort Call, touch
   controls and auto power off
 
-<img width="710" height="1115" alt="image" src="https://github.com/user-attachments/assets/2357d176-d6e7-4f50-98d5-3db27094d272" />
+<img width="429" height="624" alt="The Momentum panel" src="preview.png" />
 
 ## Requirements
 
