@@ -90,3 +90,20 @@ mise run build          # compile dist/momentum
 mise run check          # CLI tests, lint, types and formatting
 mise run check:plugin   # plugin manifest and QML
 ```
+
+## Credits
+
+The headset protocol is reverse-engineered by the community and is not an
+official Sennheiser API. This project builds on:
+
+- [omarchy-momentum4](https://github.com/DanSmith888/omarchy-momentum4) by
+  Daniel Smith (MIT), whose `PROTOCOL.md` documents the GAIA commands used
+  here, and whose `presets.json` supplies Smart Control's EQ preset values.
+- [momentum4-control](https://github.com/f3Y0/momentum4-control) by f3Y0
+  (MIT), the source of the protocol constants and the RFCOMM channel-probing
+  approach.
+- [momentumctl](https://github.com/gjabell/momentumctl) by Galen Abell (MIT),
+  which the panel used before the `momentum` CLI, and the source of the
+  battery, on-head, auto-answer, Smart Pause and Comfort Call command IDs.
+- [AutoEq](https://github.com/jaakkopasanen/AutoEq) by Jaakko Pasanen, with
+  Momentum 4 measurements from RTINGS and oratory1990, for the Harman preset.
