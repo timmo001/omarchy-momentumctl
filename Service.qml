@@ -23,6 +23,9 @@ Item {
   // "never" or minutes as a string, matching the panel's choices.
   property var autoPowerOff: null
   property string firmware: ""
+  // What PipeWire negotiated, "" when unknown. The sample rate is in Hz.
+  property string codec: ""
+  property int sampleRate: 0
   // Gains in dB per band, and the matching preset or "custom".
   property var eq: null
   property var eqPreset: null
@@ -55,6 +58,8 @@ Item {
     touchControls = typeof values.touchControls === "boolean" ? values.touchControls : null
     autoPowerOff = !isFinite(values.autoPowerOff) || values.autoPowerOff === null ? null : (values.autoPowerOff === 0 ? "never" : String(values.autoPowerOff))
     firmware = values.firmware ? String(values.firmware) : ""
+    codec = values.codec ? String(values.codec) : ""
+    sampleRate = isFinite(values.sampleRate) && values.sampleRate !== null ? Math.round(values.sampleRate) : 0
     eq = Array.isArray(values.eq) ? values.eq : null
     eqPreset = eq === null ? null : String(values.eqPreset || "custom")
     if (!adaptive) customTransparency = transparency

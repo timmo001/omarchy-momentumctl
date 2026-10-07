@@ -25,8 +25,8 @@ const fail = (error: GaiaError | GaiaRejected) =>
 
 // Only commands that talk to the headset open a session, so help and
 // version output work without one connected.
-const withHeadset = <A>(
-  effect: Effect.Effect<A, GaiaError | GaiaRejected, Session>,
+const withHeadset = <A, R>(
+  effect: Effect.Effect<A, GaiaError | GaiaRejected, R>,
 ) =>
   effect.pipe(
     Effect.provide(Session.layer),
@@ -56,6 +56,14 @@ const eqLabel = (status: Headset.Status) => {
     .join(", ");
 
   return `${status.eqPreset ?? "custom"} (${gains})`;
+};
+
+const streamLabel = (status: Headset.Status) => {
+  if (status.codec === null) return "unknown";
+
+  if (status.sampleRate === null) return status.codec;
+
+  return `${status.codec}, ${status.sampleRate / 1000} kHz`;
 };
 
 const statusCommand = Command.make(
@@ -88,6 +96,7 @@ const statusCommand = Command.make(
         `Touch controls: ${onOff(status.touchControls)}`,
         `Auto power off: ${autoPowerOffLabel(status.autoPowerOff)}`,
         `Firmware: ${status.firmware ?? "unknown"}`,
+        `Codec: ${streamLabel(status)}`,
       ].join("\n"),
     );
   }),

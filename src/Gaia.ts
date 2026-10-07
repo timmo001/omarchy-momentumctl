@@ -83,6 +83,8 @@ export function decode(buffer: Uint8Array) {
 }
 
 export interface SessionService {
+  /** The headset's Bluetooth address. */
+  readonly address: string;
   /** Sends a command and returns the payload of its reply. */
   readonly request: (
     command: number,
@@ -275,7 +277,7 @@ export class Session extends Context.Service<Session, SessionService>()(
             .writeFileString(cacheFile, String(channel))
             .pipe(Effect.ignore);
 
-        return Session.of({ request: request.value });
+        return Session.of({ address, request: request.value });
       }
 
       return yield* new GaiaError({

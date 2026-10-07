@@ -8,6 +8,7 @@ arch=('x86_64' 'aarch64')
 url="https://github.com/timmo001/omarchy-momentumctl"
 license=('Apache-2.0')
 depends=('glibc' 'bluez-utils')
+optdepends=('libpulse: show the Bluetooth codec and sample rate')
 provides=('momentum')
 conflicts=('momentum' 'momentum-git')
 options=('!strip')

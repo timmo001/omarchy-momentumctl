@@ -1,7 +1,8 @@
 # Momentum for Omarchy
 
 A CLI and Omarchy control panel for Sennheiser Momentum 4 headphones. The panel
-shows the headset battery and firmware version and controls:
+shows the headset battery and firmware version, the Bluetooth codec and sample
+rate PipeWire is using, and controls:
 
 - Noise control: transparency (off, adaptive or a custom level) and anti-wind
 - Sound: bass boost, and the equaliser's presets and band sliders
@@ -14,6 +15,7 @@ shows the headset battery and firmware version and controls:
 
 - Omarchy Quattro, for the panel
 - `bluetoothctl`, from `bluez-utils`
+- `pactl`, from `libpulse`, to show the codec and sample rate
 - A paired and connected Sennheiser Momentum 4
 
 The headset protocol is reverse-engineered and features may vary with firmware.
