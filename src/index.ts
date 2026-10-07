@@ -88,6 +88,7 @@ const statusCommand = Command.make(
         `Transparency: ${status.transparency}%`,
         `Anti-wind: ${status.antiWind}`,
         `Bass boost: ${onOff(status.bassBoost)}`,
+        `Sound mode: ${status.soundMode ?? "unsupported"}`,
         `EQ: ${eqLabel(status)}`,
         `Auto-answer: ${onOff(status.autoAnswer)}`,
         `Comfort call: ${onOff(status.comfortCall)}`,
@@ -200,6 +201,11 @@ const setCommand = Command.make("set").pipe(
       "Detect when the headset is put on or taken off",
     ),
     switchCommand("smart-pause", "Pause media when the headset is taken off"),
+    Command.make(
+      "sound-mode",
+      { mode: Argument.Literals("mode", Headset.soundModes) },
+      ({ mode }) => withHeadset(Headset.setSoundMode(mode)),
+    ).pipe(Command.withDescription("Use the graphic EQ or Speech Clarity")),
     Command.make("touch-controls", toggle, ({ state }) =>
       withHeadset(Headset.setTouchControls(state)),
     ).pipe(

@@ -5,7 +5,9 @@ shows the headset battery and firmware version, the Bluetooth codec and sample
 rate PipeWire is using, and controls:
 
 - Noise control: transparency (off, adaptive or a custom level) and anti-wind
-- Sound: bass boost, and the equaliser's presets and band sliders
+- Sound: sound mode (graphic EQ or Speech Clarity), bass boost, and the
+  equaliser's presets and band sliders. Like Smart Control, the panel disables
+  bass boost and the equaliser under Speech Clarity
 - Behaviour: Smart Pause, on-head detection, auto-answer, Comfort Call, touch
   controls and auto power off
 
@@ -32,6 +34,7 @@ momentum status
 momentum set transparency 40
 momentum set eq-preset harman
 momentum set eq -3.5 -0.5 2.5 -0.5 -0.5
+momentum set sound-mode speech
 momentum --help
 ```
 

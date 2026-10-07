@@ -23,6 +23,8 @@ Item {
   // "never" or minutes as a string, matching the panel's choices.
   property var autoPowerOff: null
   property string firmware: ""
+  // "eq" or "speech", null when the firmware doesn't report it.
+  property var soundMode: null
   // What PipeWire negotiated, "" when unknown. The sample rate is in Hz.
   property string codec: ""
   property int sampleRate: 0
@@ -58,6 +60,7 @@ Item {
     touchControls = typeof values.touchControls === "boolean" ? values.touchControls : null
     autoPowerOff = !isFinite(values.autoPowerOff) || values.autoPowerOff === null ? null : (values.autoPowerOff === 0 ? "never" : String(values.autoPowerOff))
     firmware = values.firmware ? String(values.firmware) : ""
+    soundMode = values.soundMode === "eq" || values.soundMode === "speech" ? values.soundMode : null
     codec = values.codec ? String(values.codec) : ""
     sampleRate = isFinite(values.sampleRate) && values.sampleRate !== null ? Math.round(values.sampleRate) : 0
     eq = Array.isArray(values.eq) ? values.eq : null

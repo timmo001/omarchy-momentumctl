@@ -22,6 +22,9 @@ const Command = {
   // band at a time; the getter needs a (any) payload byte.
   setEqBand: 0x1001,
   getEq: 0x1003,
+  // A big-endian u16: 1 for the graphic EQ, 2 for Speech Clarity.
+  getSoundMode: 0x0804,
+  setSoundMode: 0x0803,
 } as const;
 
 export const EQ_BANDS = 5;
@@ -71,6 +74,10 @@ export const autoPowerOffChoices = ["never", "15", "30", "60"] as const;
 
 export type AutoPowerOff = (typeof autoPowerOffChoices)[number];
 
+export const soundModes = ["eq", "speech"] as const;
+
+export type SoundMode = (typeof soundModes)[number];
+
 // One-byte switches, as [get, set] command pairs.
 export const switches = {
   "auto-answer": [0x080b, 0x080a],
@@ -108,6 +115,9 @@ export interface Status {
   /** Minutes, with 0 meaning never. */
   readonly autoPowerOff: number | null;
   readonly firmware: string | null;
+  /** Speech Clarity leaves the EQ and bass boost answering, but Smart Control
+   * greys them out while it is on. */
+  readonly soundMode: SoundMode | null;
   /** Gains in dB, one per band. */
   readonly eq: readonly number[] | null;
   /** The preset whose gains match the curve exactly. */
@@ -193,6 +203,20 @@ const firmware = Effect.gen(function* () {
   return [0, 2, 4].map((offset) => view.getUint16(offset)).join(".");
 });
 
+const soundMode = Effect.gen(function* () {
+  const session = yield* Session;
+  const payload = yield* session.request(Command.getSoundMode);
+
+  if (payload.length < 2)
+    return yield* new GaiaError({
+      message: "The headset sent a short sound mode reply",
+    });
+
+  const value = new DataView(payload.buffer, payload.byteOffset).getUint16(0);
+
+  return soundModes[value - 1] ?? null;
+});
+
 const eq = Effect.gen(function* () {
   const session = yield* Session;
   const payload = yield* session.request(Command.getEq, Uint8Array.of(0));
@@ -240,6 +264,7 @@ export const status = Effect.gen(function* () {
     ),
     autoPowerOff: yield* optional(autoPowerOff),
     firmware: yield* optional(firmware),
+    soundMode: yield* optional(soundMode),
     eq: gains,
     eqPreset: gains === null ? null : matchingPreset(gains),
     ...stream,
@@ -292,3 +317,10 @@ export const setEq = Effect.fnUntraced(function* (gains: readonly number[]) {
 });
 
 export const setEqPreset = (name: EqPreset) => setEq(eqPresets[name]);
+
+export const setSoundMode = Effect.fnUntraced(function* (mode: SoundMode) {
+  const session = yield* Session;
+  const payload = new Uint8Array(2);
+  new DataView(payload.buffer).setUint16(0, soundModes.indexOf(mode) + 1);
+  yield* session.request(Command.setSoundMode, payload);
+});

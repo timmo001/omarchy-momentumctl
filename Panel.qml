@@ -21,6 +21,10 @@ Item {
   readonly property var eqPresets: ["neutral", "rock", "pop", "dance", "hip-hop", "classical", "movie", "jazz", "harman"]
   readonly property var transparencyModes: ["off", "adaptive", "custom"]
   readonly property string transparencyMode: connected ? service.transparencyMode : ""
+  readonly property var soundModes: ["eq", "speech"]
+  // Smart Control greys out the EQ and bass boost under Speech Clarity, though
+  // the headset still answers them.
+  readonly property bool speechClarity: connected && service.soundMode === "speech"
   readonly property int transparencyStep: 10
   // Shared live value so the custom button, slider, and keyboard steps agree
   // while a transparency change is still waiting to be sent.
@@ -45,6 +49,8 @@ Item {
     { key: "transparency", kind: "transparency", choices: transparencyModes, property: "transparencyMode", icon: 0xf07c5, primaryText: "Transparency", secondaryText: "off adaptive custom noise", section: "Noise control" }
   ].concat(transparencyMode !== "off" ? [
     { key: "anti-wind", kind: "choice", choices: antiWindModes, property: "antiWind", icon: 0xf059d, primaryText: "Anti-wind", secondaryText: "off auto max", section: "Noise control" }
+  ] : []).concat(service && service.soundMode !== null ? [
+    { key: "sound-mode", kind: "choice", choices: soundModes, property: "soundMode", icon: 0xf075a, primaryText: "Sound mode", secondaryText: "graphic eq speech clarity", section: "Sound" }
   ] : []).concat(service && service.bassBoost !== null ? [
     toggleRow("bass-boost", "bassBoost", 0xf0f6f, "Bass boost", "Sound")
   ] : []).concat(service && service.eqPreset !== null ? [
@@ -64,12 +70,18 @@ Item {
     return { key: key, kind: "toggle", property: property, icon: icon, primaryText: label, secondaryText: "", section: section }
   }
 
+  function rowEnabled(entry) {
+    return !(speechClarity && (entry.key === "bass-boost" || entry.key === "eq-preset"))
+  }
+
   // Every clickable control is its own cursor stop, so Up and Down walk the
-  // buttons inside a row as well as the rows themselves.
+  // buttons inside a row as well as the rows themselves. Disabled rows have
+  // none.
   function buildNavigationEntries(entries) {
     var targets = [{ key: "action:refresh", rowKey: "action:refresh", kind: "refresh", navigation: true }]
     for (var i = 0; i < entries.length; i++) {
       var entry = entries[i]
+      if (!rowEnabled(entry)) continue
       if (entry.kind === "toggle")
         targets.push({ key: entry.key, rowKey: entry.key, row: entry, kind: "toggle" })
       else if (entry.kind === "preset") {
@@ -107,6 +119,8 @@ Item {
   }
 
   function choiceLabel(value) {
+    if (value === "eq") return "Graphic EQ"
+    if (value === "speech") return "Speech Clarity"
     if (/^\d+$/.test(value)) return value + " min"
     return value.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1) }).join("-")
   }
@@ -117,6 +131,7 @@ Item {
 
   function rowValue(entry) {
     if (!connected) return "Unavailable"
+    if (!rowEnabled(entry)) return "Not used with Speech Clarity"
     if (entry.kind === "toggle") return onOff(service[entry.property])
     if (entry.kind === "preset") return "Stored on the headset"
     if (entry.kind === "transparency") {
@@ -134,7 +149,7 @@ Item {
   }
 
   function toggle(entry) {
-    if (controllable) service.setValue(entry.key, service[entry.property] ? "off" : "on")
+    if (controllable && rowEnabled(entry)) service.setValue(entry.key, service[entry.property] ? "off" : "on")
   }
 
   function setChoice(entry, value) {
@@ -151,7 +166,7 @@ Item {
 
   // Presets wrap around. A custom curve starts from the first or last one.
   function cyclePreset(entry, delta) {
-    if (!controllable) return
+    if (!controllable || speechClarity) return
     var index = entry.choices.indexOf(service[entry.property])
     var next = index < 0 ? (delta > 0 ? 0 : entry.choices.length - 1)
       : (index + delta + entry.choices.length) % entry.choices.length
@@ -161,7 +176,7 @@ Item {
   }
 
   function setEqBand(band, gain) {
-    if (!controllable || band >= eqLive.length) return
+    if (!controllable || speechClarity || band >= eqLive.length) return
     var snapped = Math.round(Math.max(-eqGainLimit, Math.min(eqGainLimit, gain)) / eqGainStep) * eqGainStep
     if (snapped === eqLive[band]) return
     var next = eqLive.slice()
@@ -281,7 +296,8 @@ Item {
     property string label: ""
     property string targetKey: ""
     property bool selected: false
-    readonly property bool actionable: targetKey !== "" && panel.controllable
+    property bool available: true
+    readonly property bool actionable: targetKey !== "" && available && panel.controllable
     readonly property bool hot: actionable && (buttonMouse.containsMouse || panel.targetSelected(targetKey))
     signal clicked()
 
@@ -338,6 +354,7 @@ Item {
     readonly property string rowKey: modelData.key
     readonly property bool isToggle: modelData.kind === "toggle"
     readonly property bool isPreset: modelData.kind === "preset"
+    readonly property bool usable: panel.rowEnabled(modelData)
 
     x: Style.space(8)
     width: Math.max(0, (parent ? parent.width : 0) - Style.space(16))
@@ -349,7 +366,7 @@ Item {
     MouseArea {
       anchors.fill: parent
       hoverEnabled: true
-      enabled: controlRow.isToggle
+      enabled: controlRow.isToggle && controlRow.usable
       cursorShape: controlRow.panel.controllable ? Qt.PointingHandCursor : Qt.ArrowCursor
       onEntered: controlRow.panel.select(controlRow.rowKey)
       onClicked: controlRow.panel.toggle(controlRow.modelData)
@@ -363,6 +380,7 @@ Item {
       anchors.leftMargin: Style.space(8)
       anchors.rightMargin: Style.space(8)
       spacing: Style.space(6)
+      opacity: controlRow.usable ? 1 : 0.5
 
       Row {
         width: parent.width
@@ -449,6 +467,7 @@ Item {
             ControlButton {
               panel: controlRow.panel
               label: "‹"
+              available: controlRow.usable
               targetKey: controlRow.isPreset ? controlRow.rowKey + ":previous" : ""
               onClicked: controlRow.panel.cyclePreset(controlRow.modelData, -1)
             }
@@ -459,6 +478,7 @@ Item {
             ControlButton {
               panel: controlRow.panel
               label: "›"
+              available: controlRow.usable
               targetKey: controlRow.isPreset ? controlRow.rowKey + ":next" : ""
               onClicked: controlRow.panel.cyclePreset(controlRow.modelData, 1)
             }
@@ -545,8 +565,8 @@ Item {
             maximum: controlRow.panel.eqGainLimit
             step: controlRow.panel.eqGainStep
             value: controlRow.panel.eqLive[bandRow.index]
-            enabled: controlRow.panel.controllable
-            opacity: enabled ? 1 : 0.5
+            enabled: controlRow.panel.controllable && controlRow.usable
+            opacity: enabled || !controlRow.usable ? 1 : 0.5
             onMoved: function(value) {
               controlRow.panel.select("eq-band:" + bandRow.index)
               controlRow.panel.setEqBand(bandRow.index, value)
@@ -567,6 +587,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             panel: controlRow.panel
             label: controlRow.panel.eqGainLabel(controlRow.panel.eqLive[bandRow.index])
+            available: controlRow.usable
             targetKey: "eq-band:" + bandRow.index
             onClicked: controlRow.panel.setEqBand(bandRow.index, 0)
           }
