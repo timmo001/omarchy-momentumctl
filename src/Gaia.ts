@@ -10,6 +10,7 @@ import {
   Scope,
 } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
+import { stripVTControlCharacters } from "node:util";
 import * as Rfcomm from "./Rfcomm.ts";
 
 const MAGIC = [0xff, 0x03] as const;
@@ -157,7 +158,9 @@ const connectedHeadset = Effect.gen(function* () {
     );
 
   for (const line of lines) {
-    const [, address, name] = /^Device (\S+) (.*)$/.exec(line) ?? [];
+    // bluetoothctl 5.87 colours its output even when piped.
+    const [, address, name] =
+      /^Device (\S+) (.*)$/.exec(stripVTControlCharacters(line)) ?? [];
 
     if (address && name?.toUpperCase().includes("MOMENTUM")) return address;
   }
