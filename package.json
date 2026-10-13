@@ -18,8 +18,8 @@
     "prepare": "effect-tsgo patch --force=false"
   },
   "dependencies": {
-    "@effect/platform-bun": "4.0.3",
-    "effect": "4.0.3"
+    "@effect/platform-bun": "4.0.4",
+    "effect": "4.0.4"
   },
   "devDependencies": {
     "@effect/tsgo": "0.51.1",
