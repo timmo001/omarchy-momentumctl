@@ -3,6 +3,7 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 Item {
@@ -11,7 +12,7 @@ Item {
   property var shell: null
   property var service: null
   property bool opened: false
-  readonly property color foreground: Color.foreground
+  readonly property color foreground: Commons.Color.foreground
   readonly property string fontFamily: Style.font.family
   readonly property color mutedColor: Qt.darker(foreground, 1.35)
   readonly property bool connected: service !== null && service.connected
@@ -38,8 +39,8 @@ Item {
   readonly property string cursorRowKey: filterController.selectedEntry() ? filterController.selectedEntry().rowKey : ""
   readonly property var panelBar: QtObject {
     readonly property color foreground: root.foreground
-    readonly property color background: Color.background
-    readonly property color urgent: Color.urgent
+    readonly property color background: Commons.Color.background
+    readonly property color urgent: Commons.Color.urgent
     readonly property string fontFamily: root.fontFamily
   }
 
@@ -304,7 +305,7 @@ Item {
     height: Style.space(24)
     radius: Style.cornerRadius
     color: hot ? Style.hoverFillFor(panel.foreground, panel.foreground)
-      : (selected ? Style.selectedFillFor(panel.foreground, Color.accent) : "transparent")
+      : (selected ? Style.selectedFillFor(panel.foreground, Commons.Color.accent) : "transparent")
     borderSpec: hot ? Border.controlSpec("hover-cursor", panel.foreground, panel.foreground) : Border.none()
 
     Text {
@@ -616,7 +617,7 @@ Item {
 
     Rectangle {
       anchors.fill: parent
-      color: Color.menu.scrim
+      color: Commons.Color.menu.scrim
       MouseArea {
         anchors.fill: parent
         onClicked: root.requestClose()
@@ -627,7 +628,7 @@ Item {
       anchors.centerIn: parent
       width: Math.min(Style.space(430), parent.width - Style.space(32))
       height: Math.min(contentColumn.implicitHeight + Style.space(32), Style.space(670), parent.height - Style.space(32))
-      color: Color.background
+      color: Commons.Color.background
       radius: Style.cornerRadius
 
       MouseArea { anchors.fill: parent; onClicked: {} }
