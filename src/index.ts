@@ -1,7 +1,13 @@
 import { BunRuntime, BunServices } from "@effect/platform-bun";
 import { Console, Effect, Schema } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
-import { type GaiaError, type GaiaRejected, Session } from "./Gaia.ts";
+import * as Audio from "./Audio.ts";
+import {
+  connectedHeadset,
+  type GaiaError,
+  type GaiaRejected,
+  Session,
+} from "./Gaia.ts";
 import * as Headset from "./Headset.ts";
 import packageJson from "../package.json" with { type: "json" };
 
@@ -14,7 +20,7 @@ const autoPowerOffLabel = (minutes: number | null) => {
   return minutes === 0 ? "never" : `${minutes} minutes`;
 };
 
-const fail = (error: GaiaError | GaiaRejected) =>
+const fail = (error: GaiaError | GaiaRejected | Audio.AudioError) =>
   Console.error(`momentum: ${error.message}`).pipe(
     Effect.andThen(
       Effect.sync(() => {
@@ -32,6 +38,12 @@ const withHeadset = <A, R>(
     Effect.provide(Session.layer),
     Effect.catch((error) => fail(error).pipe(Effect.as(undefined))),
   );
+
+// PipeWire settings need the headset's address but not its RFCOMM session,
+// so they don't wait for the lock.
+const withAudio = <A, R>(
+  use: (address: string) => Effect.Effect<A, Audio.AudioError, R>,
+) => connectedHeadset.pipe(Effect.flatMap(use), Effect.catch(fail));
 
 const toggle = {
   state: Argument.Literals("state", ["on", "off"] as const).pipe(
@@ -98,6 +110,8 @@ const statusCommand = Command.make(
         `Auto power off: ${autoPowerOffLabel(status.autoPowerOff)}`,
         `Firmware: ${status.firmware ?? "unknown"}`,
         `Codec: ${streamLabel(status)}`,
+        `Codecs: ${status.codecs.join(", ") || "unknown"}`,
+        `Call profile switch: ${status.callProfileSwitch === null ? "unknown" : onOff(status.callProfileSwitch)}`,
       ].join("\n"),
     );
   }),
@@ -147,6 +161,24 @@ const setCommand = Command.make("set").pipe(
       Command.withDescription("Turn the headset off after a while unused"),
     ),
     switchCommand("bass-boost", "Boost the low end"),
+    Command.make("call-profile-switch", toggle, ({ state }) =>
+      withAudio(() => Audio.setCallProfileSwitch(state)),
+    ).pipe(
+      Command.withDescription(
+        "Let apps that record from a Bluetooth headset move it to the call profile",
+      ),
+    ),
+    Command.make(
+      "codec",
+      {
+        codec: Argument.String("codec").pipe(
+          Argument.withDescription(
+            "A codec PipeWire offers, such as aac or aptx-hd",
+          ),
+        ),
+      },
+      ({ codec }) => withAudio((address) => Audio.setCodec(address, codec)),
+    ).pipe(Command.withDescription("Switch the Bluetooth codec")),
     switchCommand("comfort-call", "Hear your own voice during calls"),
     Command.make(
       "eq",

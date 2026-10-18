@@ -5,11 +5,12 @@ shows the headset battery and firmware version, the Bluetooth codec and sample
 rate PipeWire is using, and controls:
 
 - Noise control: transparency (off, adaptive or a custom level) and anti-wind
-- Sound: sound mode (graphic EQ or Speech Clarity), bass boost, and the
-  equaliser's presets and band sliders. Like Smart Control, the panel disables
-  bass boost and the equaliser under Speech Clarity
+- Sound: sound mode (graphic EQ or Speech Clarity), bass boost, the
+  equaliser's presets and band sliders, and the Bluetooth codec. Like Smart
+  Control, the panel disables bass boost and the equaliser under Speech Clarity
 - Behaviour: Smart Pause, on-head detection, auto-answer, Comfort Call, touch
-  controls and auto power off
+  controls, auto power off, and whether apps that use the headset mic can move
+  it to the mono call profile
 
 <img width="430" height="670" alt="The Momentum panel" src="screenshot.png" />
 
@@ -17,7 +18,8 @@ rate PipeWire is using, and controls:
 
 - Omarchy Quattro, for the panel
 - `bluetoothctl`, from `bluez-utils`
-- `pactl`, from `libpulse`, to show the codec and sample rate
+- `pactl`, from `libpulse`, to show and switch the codec
+- `wpctl`, from `wireplumber`, for the call profile switch
 - A paired and connected Sennheiser Momentum 4
 
 The headset protocol is reverse-engineered and features may vary with firmware.
@@ -35,11 +37,22 @@ momentum set transparency 40
 momentum set eq-preset harman
 momentum set eq -3.5 -0.5 2.5 -0.5 -0.5
 momentum set sound-mode speech
+momentum set codec aac
+momentum set call-profile-switch off
 momentum --help
 ```
 
 The CLI finds the first connected Bluetooth device named MOMENTUM. Set
 `MOMENTUM_ADDRESS` to pick one by address instead.
+
+### Codec and call profile
+
+These are PipeWire settings on the PC, not headset ones. Picking a codec
+switches the headset to its A2DP profile, which also leaves the call profile.
+The call profile switch is WirePlumber's
+`bluetooth.autoswitch-to-headset-profile`, saved with `wpctl`, so it applies to
+every Bluetooth headset. With it off, music stays in high quality but calls
+use another mic.
 
 ### Equaliser
 

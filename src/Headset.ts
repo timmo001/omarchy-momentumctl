@@ -125,6 +125,8 @@ export interface Status {
   /** The Bluetooth codec PipeWire negotiated, and its sample rate in Hz. */
   readonly codec: string | null;
   readonly sampleRate: number | null;
+  readonly codecs: readonly string[];
+  readonly callProfileSwitch: boolean | null;
 }
 
 // Newer settings can be missing on older firmware, so a rejection reports
@@ -240,7 +242,7 @@ export const status = Effect.gen(function* () {
   const session = yield* Session;
   const table = yield* noiseTable;
   const gains = yield* optional(eq);
-  const stream = yield* Audio.stream(session.address);
+  const audio = yield* Audio.status(session.address);
 
   return {
     battery: yield* firstByte(Command.battery),
@@ -267,7 +269,7 @@ export const status = Effect.gen(function* () {
     soundMode: yield* optional(soundMode),
     eq: gains,
     eqPreset: gains === null ? null : matchingPreset(gains),
-    ...stream,
+    ...audio,
   } satisfies Status;
 });
 

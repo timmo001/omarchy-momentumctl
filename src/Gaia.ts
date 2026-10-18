@@ -142,7 +142,7 @@ function makeRequest(connection: Rfcomm.Connection): SessionService["request"] {
   });
 }
 
-const connectedHeadset = Effect.gen(function* () {
+export const connectedHeadset = Effect.gen(function* () {
   const configured = process.env["MOMENTUM_ADDRESS"];
 
   if (configured) return configured;
