@@ -28,6 +28,10 @@ Item {
   // What PipeWire negotiated, "" when unknown. The sample rate is in Hz.
   property string codec: ""
   property int sampleRate: 0
+  // The A2DP codecs PipeWire offers, by name.
+  property var codecs: []
+  // WirePlumber's switch to the call profile, null when unknown.
+  property var callProfileSwitch: null
   // Gains in dB per band, and the matching preset or "custom".
   property var eq: null
   property var eqPreset: null
@@ -63,6 +67,8 @@ Item {
     soundMode = values.soundMode === "eq" || values.soundMode === "speech" ? values.soundMode : null
     codec = values.codec ? String(values.codec) : ""
     sampleRate = isFinite(values.sampleRate) && values.sampleRate !== null ? Math.round(values.sampleRate) : 0
+    codecs = Array.isArray(values.codecs) ? values.codecs.map(String) : []
+    callProfileSwitch = typeof values.callProfileSwitch === "boolean" ? values.callProfileSwitch : null
     eq = Array.isArray(values.eq) ? values.eq : null
     eqPreset = eq === null ? null : String(values.eqPreset || "custom")
     if (!adaptive) customTransparency = transparency

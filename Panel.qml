@@ -56,12 +56,16 @@ Item {
     toggleRow("bass-boost", "bassBoost", 0xf0f6f, "Bass boost", "Sound")
   ] : []).concat(service && service.eqPreset !== null ? [
     { key: "eq-preset", kind: "preset", choices: eqPresets, property: "eqPreset", icon: 0xf0ea2, primaryText: "Equaliser", secondaryText: "eq preset " + eqPresets.join(" "), section: "Sound" }
+  ] : []).concat(service && service.codecs.length > 0 ? [
+    { key: "codec", kind: "choice", choices: service.codecs, property: "codec", icon: 0xf00b0, primaryText: "Codec", secondaryText: "bluetooth codec " + service.codecs.join(" "), section: "Sound" }
   ] : []).concat([
     toggleRow("smart-pause", "smartPause", 0xf03e6, "Smart Pause", "Behaviour"),
     toggleRow("on-head-detection", "onHeadDetection", 0xf133b, "On-head detection", "Behaviour"),
     toggleRow("auto-answer", "autoAnswer", 0xf03f6, "Auto-answer", "Behaviour"),
     toggleRow("comfort-call", "comfortCall", 0xf05cb, "Comfort Call", "Behaviour")
-  ]).concat(service && service.touchControls !== null ? [
+  ]).concat(service && service.callProfileSwitch !== null ? [
+    toggleRow("call-profile-switch", "callProfileSwitch", 0xf02ce, "Call profile switch", "Behaviour")
+  ] : []).concat(service && service.touchControls !== null ? [
     toggleRow("touch-controls", "touchControls", 0xf0741, "Touch controls", "Behaviour")
   ] : []).concat(service && service.autoPowerOff !== null ? [
     { key: "auto-power-off", kind: "choice", choices: autoPowerOffChoices, property: "autoPowerOff", icon: 0xf0904, primaryText: "Auto power off", secondaryText: "never 15 30 60 minutes", section: "Behaviour" }
@@ -126,6 +130,11 @@ Item {
     return value.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1) }).join("-")
   }
 
+  // Codec names come from PipeWire already in their usual case.
+  function optionLabel(entry, value) {
+    return entry.key === "codec" ? value : choiceLabel(value)
+  }
+
   function eqGainLabel(gain) {
     return (gain > 0 ? "+" : "") + gain + " dB"
   }
@@ -139,6 +148,7 @@ Item {
       if (transparencyMode === "adaptive") return "Adaptive, " + service.transparency + "%"
       if (transparencyMode === "custom") return Math.round(transparencyLive) + "%"
     }
+    if (entry.key === "codec") return service.codec || "Unknown"
     return choiceLabel(service[entry.property])
   }
 
@@ -451,7 +461,7 @@ Item {
               ControlButton {
                 required property string modelData
                 panel: controlRow.panel
-                label: controlRow.panel.choiceLabel(modelData)
+                label: controlRow.panel.optionLabel(controlRow.modelData, modelData)
                 targetKey: controlRow.rowKey + ":" + modelData
                 selected: controlRow.panel.connected && controlRow.panel.service[controlRow.modelData.property] === modelData
                 onClicked: controlRow.panel.setChoice(controlRow.modelData, modelData)
