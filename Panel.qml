@@ -520,6 +520,15 @@ Item {
             controlRow.panel.select("transparency:decrement")
             controlRow.panel.setTransparency(Math.round(value))
           }
+
+          // PanelSlider steps on any wheel event, including a touchpad's
+          // stray ones while the pointer rests on it, so the level only
+          // changes by dragging, clicking or the keyboard.
+          MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.NoButton
+            onWheel: function(wheel) { wheel.accepted = true }
+          }
         }
 
         ControlGroup {
