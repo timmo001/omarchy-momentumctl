@@ -15,7 +15,7 @@ permissions:
 jobs:
   plugin:
     runs-on: ubuntu-latest
-    container: archlinux:latest@sha256:f3691b4dde62ba4c4b6f0ae2c1fbf28e8c0c8c4b9a35c7e06dc1f70e21aa29f6
+    container: archlinux:latest@sha256:d4594bb2300cba11f41c2f27923eb56f63d9988909c402f9c95517d1e362c899
     steps:
       - name: Install validation tools
         run: pacman -Syu --noconfirm --needed git jq quickshell qt6-declarative
