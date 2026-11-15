@@ -1,0 +1,31 @@
+---
+title: Install
+description: Install the momentum CLI and the Omarchy panel.
+---
+
+## Requirements
+
+- Omarchy Quattro, for the panel
+- `bluetoothctl`, from `bluez-utils`
+- `pactl`, from `libpulse`, to show and switch the codec
+- `wpctl`, from `wireplumber`, for the call profile switch
+- A paired and connected Sennheiser Momentum 4
+
+## The CLI
+
+Install `momentum-bin` or `momentum-git` from the AUR, or a package from the [releases](https://github.com/timmo001/omarchy-momentumctl/releases).
+
+## The panel
+
+Install the `momentum` CLI first, then add the plugin:
+
+```bash
+omarchy plugin add https://github.com/timmo001/omarchy-momentumctl.git
+```
+
+For an unattended install from a repository you already trust, add `--enable --yes`.
+
+```bash
+omarchy plugin update timmo.momentumctl
+omarchy plugin remove timmo.momentumctl
+```

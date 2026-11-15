@@ -104,6 +104,8 @@ omarchy plugin remove timmo.momentumctl
 
 ## Development
 
+Documentation is at <https://momentumctl.timmo.dev>.
+
 ```bash
 mise run build          # compile dist/momentum
 mise run check          # CLI tests, lint, types and formatting

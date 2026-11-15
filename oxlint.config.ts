@@ -8,5 +8,5 @@ export default defineConfig({
     typeCheck: true,
     maxWarnings: 0,
   },
-  ignorePatterns: [".agents/**"],
+  ignorePatterns: [".agents/**", "docs/**"],
 });

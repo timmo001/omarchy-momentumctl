@@ -25,6 +25,12 @@
 - Run `mise run check` after changing the CLI, and `mise run check:plugin` after changing QML or the manifest.
 - Test headset changes against a real headset and restore the previous settings afterwards.
 
+## Docs and skill
+
+- The docs site is a Blume site in `docs/`, with its own `package.json`. `mise run docs:check` builds it and runs in `mise run check`; `mise run serve:docs` starts the dev server through Pitchfork.
+- `skills/momentum/SKILL.md` is the tool-owned agent skill. Update it when a CLI command or setting changes.
+- `hk.pkl` runs the shared lints and `mise run lint` before a push.
+
 ## Safety
 
 - Only use GAIA commands documented in DanSmith888/omarchy-momentum4's `PROTOCOL.md` and already used by the CLI.

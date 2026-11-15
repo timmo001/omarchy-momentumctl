@@ -1,0 +1,38 @@
+---
+title: Overview
+description: A CLI and Omarchy panel for Sennheiser Momentum 4 headphones.
+---
+
+Momentum controls Sennheiser Momentum 4 headphones from Linux. The `momentum` CLI reads and changes the headset's settings over Bluetooth, and the Omarchy panel shows them in the shell.
+
+```bash
+momentum status
+momentum set transparency 40
+momentum set eq-preset harman
+```
+
+## What it covers
+
+- Noise control: noise cancelling, adaptive and custom transparency, and anti-wind.
+- Sound: sound mode, bass boost, the equaliser's presets and bands, and the Bluetooth codec.
+- Behaviour: Smart Pause, on-head detection, auto-answer, Comfort Call, touch controls, auto power off and the call profile switch.
+
+The headset protocol is reverse-engineered and can vary with firmware. Settings the firmware rejects are reported as unsupported and hidden in the panel. Firmware updates, factory resets and undocumented commands are not implemented.
+
+## Get started
+
+| Page | Why |
+| --- | --- |
+| [Install](/install) | Install the CLI and the panel |
+| [CLI](/cli) | Every command, and how the CLI finds the headset |
+| [Panel](/panel) | Open and use the Omarchy panel |
+| [Agents](/agents) | Let an agent read and change the headset |
+
+## Machine-readable docs
+
+| URL | Use |
+| --- | --- |
+| https://momentumctl.timmo.dev/llms.txt | Compact page index |
+| https://momentumctl.timmo.dev/llms-full.txt | Full docs bundle |
+| https://momentumctl.timmo.dev/mcp | Hosted MCP (search, page and navigation) |
+| `/{route}.md` | One page as Markdown |

@@ -62,9 +62,57 @@ omarchy plugin validate "$dir"
 description = "Lint the plugin QML"
 run = "qmllint -I /usr/lib/qt6/qml Panel.qml PanelFlickable.qml PanelHeader.qml SectionHeading.qml Service.qml"
 
+[tasks."docs:install"]
+description = "Install docs dependencies"
+dir = "docs"
+run = "bun install --frozen-lockfile"
+
+[tasks."docs:dev"]
+description = "Run the docs dev server"
+depends = ["docs:install"]
+dir = "docs"
+run = "bun run dev"
+
+[tasks."docs:build"]
+description = "Build the docs site"
+depends = ["docs:install"]
+dir = "docs"
+run = "bun run build"
+
+[tasks."docs:preview"]
+description = "Preview the built docs site"
+dir = "docs"
+run = "bun run preview"
+
+[tasks."docs:check"]
+description = "Check the docs site's pages, links and types without disturbing a running dev server"
+depends = ["docs:install"]
+dir = "docs"
+run = "bun run check -- --isolated"
+
+[tasks."serve:docs"]
+description = "Start the docs dev server in the background through Pitchfork"
+run = "pitchfork start docs"
+
+[tasks."serve:docs:status"]
+description = "Show the background docs dev server status"
+run = "pitchfork status docs"
+
+[tasks."serve:docs:logs"]
+description = "Follow the background docs dev server logs"
+run = "pitchfork logs -t docs"
+
+[tasks."serve:docs:restart"]
+description = "Restart the background docs dev server"
+run = "pitchfork restart docs"
+
+[tasks."serve:docs:stop"]
+description = "Stop the background docs dev server"
+run = "pitchfork stop docs"
+
 [tasks.check]
-description = "Test, lint, type-check and verify formatting of the CLI"
-depends = ["test", "lint", "typecheck", "format:check"]
+description = "Test, lint, type-check and verify formatting of the CLI, and check the docs site"
+depends = ["test", "lint", "typecheck", "format:check", "docs:check"]
 
 [tasks."check:plugin"]
 description = "Validate the plugin manifest and lint the QML"
