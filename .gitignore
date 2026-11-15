@@ -1,5 +1,6 @@
 node_modules/
 dist/
-.mise/
+.mise/*
+!.mise/locks/
 .claude/*
 !.claude/settings.json
