@@ -29,6 +29,7 @@ const PROBE_COMMAND = 0x1a05;
 
 export class GaiaError extends Schema.TaggedError<GaiaError>()("GaiaError", {
   message: Schema.String,
+  cause: Schema.optional(Schema.Defect()),
 }) {}
 
 /** The headset answered with an error, usually an unsupported command. */
@@ -153,7 +154,8 @@ export const connectedHeadset = Effect.gen(function* () {
     .lines(ChildProcess.make("bluetoothctl", ["devices", "Connected"]))
     .pipe(
       Effect.mapError(
-        () => new GaiaError({ message: "Could not run bluetoothctl" }),
+        (cause) =>
+          new GaiaError({ message: "Could not run bluetoothctl", cause }),
       ),
     );
 
@@ -179,7 +181,8 @@ const runtimeDirectory = Effect.gen(function* () {
     .makeDirectory(directory, { recursive: true, mode: 0o700 })
     .pipe(
       Effect.mapError(
-        () => new GaiaError({ message: `Could not create ${directory}` }),
+        (cause) =>
+          new GaiaError({ message: `Could not create ${directory}`, cause }),
       ),
     );
 
@@ -191,7 +194,8 @@ const runtimeDirectory = Effect.gen(function* () {
 const holdLock = Effect.fnUntraced(function* (directory: string) {
   const fd = yield* Rfcomm.openLockFile(`${directory}/lock`).pipe(
     Effect.mapError(
-      () => new GaiaError({ message: "Could not open the lock file" }),
+      (cause) =>
+        new GaiaError({ message: "Could not open the lock file", cause }),
     ),
   );
 

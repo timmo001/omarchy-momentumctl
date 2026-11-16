@@ -3,6 +3,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 export class AudioError extends Schema.TaggedError<AudioError>()("AudioError", {
   message: Schema.String,
+  cause: Schema.optional(Schema.Defect()),
 }) {}
 
 const Sinks = Schema.fromJsonString(
@@ -157,7 +158,7 @@ const succeeded = Effect.fnUntraced(function* (
 
   const exitCode = yield* spawner
     .exitCode(ChildProcess.make(command, args))
-    .pipe(Effect.mapError(() => new AudioError({ message })));
+    .pipe(Effect.mapError((cause) => new AudioError({ message, cause })));
 
   if (exitCode !== 0) return yield* new AudioError({ message });
 });
