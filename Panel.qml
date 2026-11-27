@@ -9,6 +9,8 @@ import qs.Ui
 Item {
   id: root
 
+  Commons.Translations { id: strings; directory: Qt.resolvedUrl("i18n") }
+
   property var shell: null
   property var service: null
   property bool opened: false
@@ -47,32 +49,33 @@ Item {
   // Transparency covers the whole noise control state: off, adaptive, or a
   // custom level. Anti-wind has nothing to act on with noise control off.
   readonly property var rows: [
-    { key: "transparency", kind: "transparency", choices: transparencyModes, property: "transparencyMode", icon: 0xf07c5, primaryText: "Transparency", secondaryText: "off adaptive custom noise", section: "Noise control" }
+    { key: "transparency", kind: "transparency", choices: transparencyModes, property: "transparencyMode", icon: 0xf07c5, primaryText: strings.t("row.transparency"), secondaryText: "transparency off adaptive custom noise", section: "Noise control" }
   ].concat(transparencyMode !== "off" ? [
-    { key: "anti-wind", kind: "choice", choices: antiWindModes, property: "antiWind", icon: 0xf059d, primaryText: "Anti-wind", secondaryText: "off auto max", section: "Noise control" }
+    { key: "anti-wind", kind: "choice", choices: antiWindModes, property: "antiWind", icon: 0xf059d, primaryText: strings.t("row.antiWind"), secondaryText: "anti wind off auto max", section: "Noise control" }
   ] : []).concat(service && service.soundMode !== null ? [
-    { key: "sound-mode", kind: "choice", choices: soundModes, property: "soundMode", icon: 0xf075a, primaryText: "Sound mode", secondaryText: "graphic eq speech clarity", section: "Sound" }
+    { key: "sound-mode", kind: "choice", choices: soundModes, property: "soundMode", icon: 0xf075a, primaryText: strings.t("row.soundMode"), secondaryText: "sound mode graphic eq speech clarity", section: "Sound" }
   ] : []).concat(service && service.bassBoost !== null ? [
-    toggleRow("bass-boost", "bassBoost", 0xf0f6f, "Bass boost", "Sound")
+    toggleRow("bass-boost", "bassBoost", 0xf0f6f, strings.t("row.bassBoost"), "Sound")
   ] : []).concat(service && service.eqPreset !== null ? [
-    { key: "eq-preset", kind: "preset", choices: eqPresets, property: "eqPreset", icon: 0xf0ea2, primaryText: "Equaliser", secondaryText: "eq preset " + eqPresets.join(" "), section: "Sound" }
+    { key: "eq-preset", kind: "preset", choices: eqPresets, property: "eqPreset", icon: 0xf0ea2, primaryText: strings.t("row.equaliser"), secondaryText: "equaliser eq preset " + eqPresets.join(" "), section: "Sound" }
   ] : []).concat(service && service.codecs.length > 0 ? [
-    { key: "codec", kind: "choice", choices: service.codecs, property: "codec", icon: 0xf00b0, primaryText: "Codec", secondaryText: "bluetooth codec " + service.codecs.join(" "), section: "Sound" }
+    { key: "codec", kind: "choice", choices: service.codecs, property: "codec", icon: 0xf00b0, primaryText: strings.t("row.codec"), secondaryText: "bluetooth codec " + service.codecs.join(" "), section: "Sound" }
   ] : []).concat([
-    toggleRow("smart-pause", "smartPause", 0xf03e6, "Smart Pause", "Behaviour"),
-    toggleRow("on-head-detection", "onHeadDetection", 0xf133b, "On-head detection", "Behaviour"),
-    toggleRow("auto-answer", "autoAnswer", 0xf03f6, "Auto-answer", "Behaviour"),
-    toggleRow("comfort-call", "comfortCall", 0xf05cb, "Comfort Call", "Behaviour")
+    toggleRow("smart-pause", "smartPause", 0xf03e6, strings.t("row.smartPause"), "Behaviour"),
+    toggleRow("on-head-detection", "onHeadDetection", 0xf133b, strings.t("row.onHeadDetection"), "Behaviour"),
+    toggleRow("auto-answer", "autoAnswer", 0xf03f6, strings.t("row.autoAnswer"), "Behaviour"),
+    toggleRow("comfort-call", "comfortCall", 0xf05cb, strings.t("row.comfortCall"), "Behaviour")
   ]).concat(service && service.callProfileSwitch !== null ? [
-    toggleRow("call-profile-switch", "callProfileSwitch", 0xf02ce, "Call profile switch", "Behaviour")
+    toggleRow("call-profile-switch", "callProfileSwitch", 0xf02ce, strings.t("row.callProfileSwitch"), "Behaviour")
   ] : []).concat(service && service.touchControls !== null ? [
-    toggleRow("touch-controls", "touchControls", 0xf0741, "Touch controls", "Behaviour")
+    toggleRow("touch-controls", "touchControls", 0xf0741, strings.t("row.touchControls"), "Behaviour")
   ] : []).concat(service && service.autoPowerOff !== null ? [
-    { key: "auto-power-off", kind: "choice", choices: autoPowerOffChoices, property: "autoPowerOff", icon: 0xf0904, primaryText: "Auto power off", secondaryText: "never 15 30 60 minutes", section: "Behaviour" }
+    { key: "auto-power-off", kind: "choice", choices: autoPowerOffChoices, property: "autoPowerOff", icon: 0xf0904, primaryText: strings.t("row.autoPowerOff"), secondaryText: "auto power off never 15 30 60 minutes", section: "Behaviour" }
   ] : [])
 
   function toggleRow(key, property, icon, label, section) {
-    return { key: key, kind: "toggle", property: property, icon: icon, primaryText: label, secondaryText: "", section: section }
+    // The key doubles as English search terms, so a translated panel still finds "comfort call".
+    return { key: key, kind: "toggle", property: property, icon: icon, primaryText: label, secondaryText: key.split("-").join(" "), section: section }
   }
 
   function rowEnabled(entry) {
@@ -120,14 +123,14 @@ Item {
   }
 
   function onOff(value) {
-    return value ? "On" : "Off"
+    return value ? strings.t("value.on") : strings.t("value.off")
   }
 
   function choiceLabel(value) {
-    if (value === "eq") return "Graphic EQ"
-    if (value === "speech") return "Speech Clarity"
-    if (/^\d+$/.test(value)) return value + " min"
-    return value.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1) }).join("-")
+    if (/^\d+$/.test(value)) return strings.t("value.minutes").arg(value)
+    var capitalised = value.split("-").map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1) }).join("-")
+    // Modes ("off", "eq", ...) and EQ presets have their own keys; an unknown value keeps its own name.
+    return strings.t("choice." + value, strings.t("preset." + value, capitalised))
   }
 
   // Codec names come from PipeWire already in their usual case.
@@ -140,15 +143,15 @@ Item {
   }
 
   function rowValue(entry) {
-    if (!connected) return "Unavailable"
-    if (!rowEnabled(entry)) return "Not used with Speech Clarity"
+    if (!connected) return strings.t("value.unavailable")
+    if (!rowEnabled(entry)) return strings.t("value.speechClarityOnly")
     if (entry.kind === "toggle") return onOff(service[entry.property])
-    if (entry.kind === "preset") return "Stored on the headset"
+    if (entry.kind === "preset") return strings.t("value.storedOnHeadset")
     if (entry.kind === "transparency") {
-      if (transparencyMode === "adaptive") return "Adaptive, " + service.transparency + "%"
-      if (transparencyMode === "custom") return Math.round(transparencyLive) + "%"
+      if (transparencyMode === "adaptive") return strings.t("value.adaptiveLevel").arg(service.transparency)
+      if (transparencyMode === "custom") return strings.t("value.percent").arg(Math.round(transparencyLive))
     }
-    if (entry.key === "codec") return service.codec || "Unknown"
+    if (entry.key === "codec") return service.codec || strings.t("value.unknown")
     return choiceLabel(service[entry.property])
   }
 
@@ -255,12 +258,12 @@ Item {
 
   function heroMeta() {
     if (connected) return [
-      service.firmware ? "Firmware " + service.firmware : "",
+      service.firmware ? strings.t("panel.firmware").arg(service.firmware) : "",
       service.codec,
       service.sampleRate > 0 ? (service.sampleRate / 1000) + " kHz" : ""
     ].filter(function(part) { return part !== "" }).join(" • ")
     if (service && service.error) return service.error
-    return "Waiting for headset"
+    return strings.t("panel.waiting")
   }
 
   function scrollCursorIntoView() {
@@ -689,7 +692,7 @@ Item {
               spacing: Style.space(12)
 
               PanelHeader {
-                title: filterController.filterText || "Headphones"
+                title: filterController.filterText || strings.t("panel.title")
                 meta: root.heroMeta()
                 foreground: root.foreground
                 fontFamily: root.fontFamily
@@ -730,7 +733,9 @@ Item {
 
                 SectionHeading {
                   id: noiseHeading
-                  title: "Noise control"
+                  title: strings.t("section.noise")
+                  refreshLabel: strings.t("section.refresh").arg(title.toLowerCase())
+                  refreshingLabel: strings.t("section.refreshing").arg(title.toLowerCase())
                   foreground: root.foreground
                   fontFamily: root.fontFamily
                   refreshable: true
@@ -755,7 +760,7 @@ Item {
                 spacing: Style.space(2)
 
                 SectionHeading {
-                  title: "Sound"
+                  title: strings.t("section.sound")
                   foreground: root.foreground
                   fontFamily: root.fontFamily
                 }
@@ -775,7 +780,7 @@ Item {
                 spacing: Style.space(2)
 
                 SectionHeading {
-                  title: "Behaviour"
+                  title: strings.t("section.behaviour")
                   foreground: root.foreground
                   fontFamily: root.fontFamily
                 }
@@ -792,7 +797,7 @@ Item {
               Text {
                 visible: filterController.filterText !== "" && filterController.count === 0
                 width: parent.width
-                text: "No matches for “" + filterController.filterText + "”"
+                text: strings.t("panel.noMatches").arg(filterController.filterText)
                 textFormat: Text.PlainText
                 color: root.mutedColor
                 font.family: root.fontFamily
