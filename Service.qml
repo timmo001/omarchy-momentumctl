@@ -1,8 +1,11 @@
 import QtQuick
 import Quickshell.Io
+import qs.Commons as Commons
 
 Item {
   id: root
+
+  Commons.Translations { id: strings; directory: Qt.resolvedUrl("i18n") }
 
   property var shell: null
   property bool available: false
@@ -129,7 +132,7 @@ Item {
     onExited: function(exitCode) {
       root.available = exitCode === 0
       if (root.available) root.refresh()
-      else root.error = "momentum is not installed"
+      else root.error = strings.t("error.notInstalled")
     }
   }
 
@@ -151,7 +154,7 @@ Item {
     onExited: function(exitCode) {
       root.busy = false
       root.connected = exitCode === 0 && root.statusValid
-      root.error = root.connected ? "" : root.cliError(statusErrors.text, "The headset is unavailable")
+      root.error = root.connected ? "" : root.cliError(statusErrors.text, strings.t("error.unavailable"))
     }
   }
 
@@ -171,7 +174,7 @@ Item {
       }
       root.pendingCommands = []
       root.busy = false
-      if (exitCode !== 0) root.error = root.cliError(controlErrors.text, "Could not update the headset")
+      if (exitCode !== 0) root.error = root.cliError(controlErrors.text, strings.t("error.updateFailed"))
       refreshTimer.restart()
     }
   }
